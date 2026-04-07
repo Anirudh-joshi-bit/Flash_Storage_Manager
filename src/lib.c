@@ -1,29 +1,57 @@
 #include "../include/commons.h"
-#include <stdint.h>
-#include <stdlib.h>
+#include "../include/USART.h"
 
-/*linker script symbols*/
-extern uint32_t _sdata;
-extern uint32_t _edata;
-extern uint32_t _sidata;
-extern uint32_t _sbss;
-extern uint32_t _ebss;
+#define MAX_STR_SIZE 100
 
+uint32_t strlen(const char *msg) {
 
-void resetHandlerHelper(void) {
-  uint32_t dest = (uint32_t)&_sdata;
-  uint32_t dest_end = (uint32_t)&_edata;
-  uint32_t src = (uint32_t)&_sidata;
+  int i = 0;
+  while (msg[i++] != '\0')
+    ;
+  return i - 1;
+}
 
-  /*copy data from data section to ram
-   * init .bss section*/
-  for (uint32_t i = dest; i <= dest_end; i += 4) {
-    *(uint32_t *)(i) = *(uint32_t *)(src);
-    src += 4;
-  }
+char *hex_str(uint32_t value, char *out) {
 
-  for (uint32_t i = (uint32_t)&_sbss; i <= (uint32_t)&_ebss; i += 4) {
-    *(uint32_t *)(i) = 0;
+  char hex_char[] = "0123456789abcdef";
+  out[0] = '0';
+  out[1] = 'x';
+
+  for (int i = 0; i < 8; i++) {
+    uint32_t ind = (value & (15 << (i * 4))) >> (i * 4);
+    int j = 9 - i;
+    out[j] = hex_char[ind];
   }
 }
 
+void printf(const char *msg, uint32_t address) {
+
+  uint32_t value = *((uint32_t *)address);
+
+  if (strlen(msg) + 9 > MAX_STR_SIZE) {
+    __usart1_print("too large error message !!\n\r", MAX_STR_SIZE);
+    return;
+  }
+  char hex[10];
+  char __msg[MAX_STR_SIZE];
+
+  uint32_t i = 0;
+  int p = 0, q = 0;
+  bool single_sub = false;
+
+  for (; i < strlen(msg); i++) {
+
+    if (msg[i] == '%' && !single_sub) {
+      hex_str(value, hex);
+
+      while (q - p < 10) {
+        __msg[q++] = hex[q - p];
+      }
+      p++;
+      single_sub = true;
+    } else
+      __msg[q++] = msg[p++];
+  }
+  __msg[q] = '\0';
+  __usart1_print(__msg, strlen(__msg));
+}

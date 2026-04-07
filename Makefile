@@ -1,8 +1,6 @@
-RESET = \033[0m
-GREEN = \033[0;32m
-
 BUILD = build
 SRC = src
+DRIVER = MyDrivers
 
 ARM = arm-none-eabi-
 CC = $(ARM)gcc
@@ -12,7 +10,10 @@ GDB = $(ARM)gdb
 OBJCPY = $(ARM)objcopy
 
 #flags
-INCLUDE_CMSIS_HEADERS = -Iinclude/cmsis -Iinclude/device
+INCLUDES = -Iinclude/cmsis \
+		   -Iinclude/device \
+		   -Iinclude
+
 MPU = -mcpu=cortex-m4 -mthumb
 OPTIMISATION = -O0
 # frestandin is important as we need to tell the compiler that there is 
@@ -22,11 +23,11 @@ FREESTANDING = -ffreestanding
 
 FLASH_BASE = 0x08000000
 
-C_SRC_FILES = $(wildcard $(SRC)/*.c)
-AS_SRC_FILES = $(wildcard $(SRC)/*.s)
+C_SRC_FILES = $(wildcard $(SRC)/*.c) $(wildcard $(DRIVER)/*.c)
+AS_SRC_FILES = $(wildcard $(SRC)/*.s) $(wildcard $(DRIVER)/*.s)
 
-C_OBJ_FILES =		$(patsubst $(SRC)/%.c, $(BUILD)/%_c_.o, $(C_SRC_FILES))
-AS_OBJ_FILES =		$(patsubst $(SRC)/%.s, $(BUILD)/%_as_.o, $(AS_SRC_FILES))
+C_OBJ_FILES =		$(patsubst $(SRC)/%.c, $(BUILD)/%_c_.o, $(wildcard $(SRC)/*.c)) $(patsubst $(DRIVER)/%.c, $(BUILD)/%_c_.o, $(wildcard $(DRIVER)/*.c))
+AS_OBJ_FILES =		$(patsubst $(SRC)/%.s, $(BUILD)/%_as_.o, $(wildcard $(SRC)/*.s)) $(patsubst $(DRIVER)/%.s, $(BUILD)/%_as_.o, $(wildcard $(DRIVER)/*.s))
 
 LINKER_SCRIPT =  linkerscript.ld 
 
@@ -58,11 +59,20 @@ $(ELF) : $(LINKER_SCRIPT) $(C_OBJ_FILES) $(AS_OBJ_FILES)
 
 $(BUILD)/%_c_.o : $(SRC)/%.c 
 		
-	$(CC) -c -g $(INCLUDE_CMSIS_HEADERS) $(MPU) $(FREESTANDING) -O0 -g3 -fno-inline $< -o $@
+	$(CC) -c -g $(INCLUDES) $(MPU) $(FREESTANDING) -O0 -g3 -fno-inline $< -o $@
 
 $(BUILD)/%_as_.o : $(SRC)/%.s
 	
 	$(AS) -g $< -o $@
+
+$(BUILD)/%_c_.o : $(DRIVER)/%.c 
+		
+	$(CC) -c -g $(INCLUDES) $(MPU) $(FREESTANDING) -O0 -g3 -fno-inline $< -o $@
+
+$(BUILD)/%_as_.o : $(DRIVER)/%.s
+	
+	$(AS) -g $< -o $@
+
 
 clean : 
 	@rm $(BUILD)/*.o $(BUILD)/*.bin $(BUILD)/*.elf

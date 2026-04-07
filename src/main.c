@@ -1,4 +1,5 @@
 #include "../include/commons.h"
+#include "../include/USART.h"
 
 int main (void){
 
