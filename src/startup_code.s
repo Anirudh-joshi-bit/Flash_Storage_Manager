@@ -105,6 +105,18 @@ SysTick_Handler :
 
     .size SysTick_Handler, . - SysTick_Handler 
 
+
+
+/************************ USART1_IRQHandler **********************/
+.section .text.USART1_IRQHandler
+.global  USART1_IRQHandler
+.type USART1_IRQHandler, %function
+ USART1_IRQHandler :
+    BL USART1_IRQHandler_c
+
+    .size USART1_IRQHandler, . - USART1_IRQHandler 
+
+
 /***************************** vtable *******************************/
 
 .section .isr_vector, "a", %progbits
@@ -129,7 +141,11 @@ vector_table:
     .word Default_Handler       /*  reserver  */
     .word PendSV_Handler        /*  pend sv handler */
     .word SysTick_Handler       /*  systick timer handler */
-
+    
+    .rept 37
+        .word Default_Handler
+    .endr
+    .word USART1_IRQHandler
 
 .size vector_table, . - vector_table
 
