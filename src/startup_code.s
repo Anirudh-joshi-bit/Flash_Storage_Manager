@@ -112,7 +112,12 @@ SysTick_Handler :
 .global  USART1_IRQHandler
 .type USART1_IRQHandler, %function
  USART1_IRQHandler :
-    BL USART1_IRQHandler_c
+
+    push {lr}
+    bl USART1_IRQHandler_c
+    pop {lr}
+
+    bx lr
 
     .size USART1_IRQHandler, . - USART1_IRQHandler 
 
