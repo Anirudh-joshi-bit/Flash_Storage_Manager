@@ -12,8 +12,6 @@ typedef struct Ring_buff_t {
 }Ring_buff_t;
 
 
-
-
 void Ring_buff_init (struct Ring_buff_t *rb);
 int8_t Ring_buff_write (Ring_buff_t *rb, uint8_t *buff, uint16_t size);
 uint16_t Ring_buff_read (Ring_buff_t *rb, uint8_t *buff, uint16_t size);

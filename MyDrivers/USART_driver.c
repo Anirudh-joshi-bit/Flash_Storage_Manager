@@ -26,9 +26,12 @@ void __usart1_init(void) {
   // enable usart, reciever, transiever
   USART1->CR1 |=    USART_CR1_TE |
                     USART_CR1_RE |
-                    USART_CR1_RXNEIE ;
+                    USART_CR1_RXNEIE;
 
   USART1->CR1 |=    USART_CR1_UE;
+
+  // enable usart1 interrupt via NVIC
+  NVIC_EnableIRQ(USART1_IRQn);
 }
 
 void __usart1_print(const char *msg, uint32_t size) {
