@@ -1,4 +1,4 @@
-#include "../include/Ring_buff.h"
+#include "ring_buff.h"
 #include <stdint.h>
 
 void Ring_buff_init (struct Ring_buff_t *rb){

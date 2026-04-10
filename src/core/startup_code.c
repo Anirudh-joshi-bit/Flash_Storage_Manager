@@ -1,4 +1,4 @@
-#include "../include/commons.h"
+#include "commons.h"
 #include <stdint.h>
 #include <stdlib.h>
 

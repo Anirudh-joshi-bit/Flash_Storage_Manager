@@ -1,4 +1,4 @@
-#include "../include/defines.h"
+#include "defines.h"
 
 int8_t packet_init(Packet_t *pkt, uint32_t data_size) {
   if (data_size > MAX_DATA_BLOCK_SIZE / 4 - PACKET_MEMBER_COUNT + 1)

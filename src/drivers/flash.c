@@ -1,4 +1,5 @@
-#include "../include/commons.h"
+#include "commons.h"
+
 #define MAX_STR_SIZE 100
 #define KEY1 0x45670123
 #define KEY2 0xCDEF89AB

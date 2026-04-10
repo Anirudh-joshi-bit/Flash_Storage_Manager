@@ -1,5 +1,5 @@
-#include "../include/commons.h"
-#include "../include/USART.h"
+#include "commons.h"
+#include "usart.h"
 
 #define MAX_STR_SIZE 100
 

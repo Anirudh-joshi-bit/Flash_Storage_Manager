@@ -1,6 +1,6 @@
-#include "../include/commons.h"
-#include "../include/Ring_buff.h"
-#include "../include/USART.h"
+#include "commons.h"
+#include "ring_buff.h"
+#include "usart.h"
 
 extern Ring_buff_t usart1_ring_buffer;
 

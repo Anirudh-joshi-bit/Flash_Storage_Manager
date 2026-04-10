@@ -16,13 +16,13 @@
 #define FLASH_SECTOR6_Addr                  0x08040000      // 128kB
 #define FLASH_SECTOR7_Addr                  0x08060000      // 128kB
 #define FLAGS_INIT_VALUE                    0x0fffffff
-
+#define MAX_NUM_RECORD                      100             // maxumum number of records
 
 
 typedef struct __packet_t {
 
     uint32_t data_size;
-    uint32_t data[MAX_DATA_BLOCK_SIZE/4 - PACKET_MEMBER_COUNT+1];
+    uint32_t data [MAX_PACKET_DATA_SIZE];
     struct __packet_t *next_block;
     uint32_t crc;
     uint32_t removed;       // useful in garbage collection
@@ -60,7 +60,7 @@ typedef struct __MetaData_block_t {
     uint32_t start_word;                        // 0xffffffff
     void *secondary_sector_end_addr;
     uint32_t metadata_block_size;
-    KeyAddr_pair_t *metadata_buffer;
+    KeyAddr_pair_t metadata_buffer[MAX_NUM_RECORD];
     uint32_t        metadata_buffer_size;
     uint32_t flags [MAX_FLAG_COUNT];
 

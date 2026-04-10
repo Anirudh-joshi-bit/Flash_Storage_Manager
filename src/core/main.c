@@ -1,6 +1,6 @@
-#include "../include/commons.h"
-#include "../include/USART.h"
-#include "../include/Ring_buff.h"
+#include "commons.h"
+#include "usart.h"
+#include "ring_buff.h"
 
 uint8_t buff[RING_BUFF_SIZE];
 Sector_t flash_sectors [8];
