@@ -1,47 +1,61 @@
-#include "ring_buff.h"
+#include <stdbool.h>
 #include <stdint.h>
+#include "ring_buff.h"
 
-void Ring_buff_init (struct Ring_buff_t *rb){
-    rb-> size = 0;
-    rb-> rear = 0;
-    rb-> front = 0xffff;
+void Ring_buff_init(volatile Ring_buff_t *rb) {
+  rb->rear = 0;
+  rb->front = 0;
+}
+bool Ring_buff_empty(volatile Ring_buff_t *rb) { return rb->front == rb->rear; }
+uint16_t Ring_buff_size(volatile Ring_buff_t *rb) {
+  uint16_t local_front = rb->front;
+  uint16_t local_rear = rb->rear;
+
+  if (local_front <= local_rear) {
+    return local_rear - local_front;
+  }
+  return RING_BUFF_SIZE - local_front + local_rear;
 }
 
 // the below functions should only be called by isr
+// Use only REAR for write . donot read / write FRONT
+// if ring buffer of overwhelmed ... then increase the size of Ringbuffer
 
-int8_t Ring_buff_write (Ring_buff_t *rb, uint8_t *buff, uint16_t size){
-    
-    if (1ll * RING_BUFF_SIZE < size + rb->size)
-        return -1;
-    if (rb->front == 0xffff && size)
-      rb->front = 0;
+void Ring_buff_write(volatile Ring_buff_t *rb, volatile uint8_t *buff,
+                     uint16_t size) {
+  // data can be overwritten ... if this happens -> increase the size of the
+  // ring buffer
 
-    for (uint16_t i=0; i<size; i++){
-        rb->buffer [rb->rear] = buff[i];
-        rb->rear ++;
-        if (rb->rear == RING_BUFF_SIZE)
-            rb->rear = 0;
-    }
-    rb->size += size;
-    return 0;
+  uint16_t local_rear = rb->rear;
+
+  for (uint16_t ind = 0; ind < size; ind++) {
+    rb->buffer[local_rear] = buff[ind];
+    local_rear++;
+    if (local_rear == RING_BUFF_SIZE)
+      local_rear = 0;
+  }
+
+  rb->rear = local_rear;
 }
 
-uint16_t Ring_buff_read (Ring_buff_t *rb, uint8_t *buff, uint16_t size){
-    if (rb->size == 0) 
-        return 0;
+// read the whole Ring_buffer
+uint16_t Ring_buff_read(volatile Ring_buff_t *rb, volatile uint8_t *buff,
+                        uint16_t buff_size) {
 
-    uint16_t size_read = size > rb->size ? rb->size : size;
-    
-    for (uint16_t i=0; i<size_read; i++){
-        buff[i] = rb->buffer[rb->front];
-        rb-> front ++;
-        if (rb->front == RING_BUFF_SIZE)
-            rb->front = 0;
-    }
-    if (rb->front == rb->rear){
-        rb->front = -1;
-        rb->rear = 0;
-    }
-    rb->size -= size_read;
-    return size_read;
+  uint16_t local_front = rb->front;
+  uint16_t local_rear = rb->rear;
+
+  uint16_t ind = 0;
+
+  while (ind < buff_size && local_front != local_rear) {
+    buff[ind] = rb->buffer[local_front];
+    local_front++;
+    if (local_front == RING_BUFF_SIZE)
+      local_front = 0;
+    ind++;
+  }
+
+  rb->front = local_front;
+
+  return ind;
 }

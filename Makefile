@@ -3,7 +3,7 @@ SRC = src
 DRIVER = drivers
 MIDDLEWARE = middleware
 CORE = core
-
+FSM = flash_storage_manager
 
 ARM = arm-none-eabi-
 CC = $(ARM)gcc
@@ -40,7 +40,8 @@ default : all
 all : build Makefile $(shell find include -name "*.h") $(ELF) $(BIN)
 
 build :
-	mkdir -p $(BUILD)/$(MIDDLEWARE) $(BUILD)/$(DRIVER) $(BUILD)/$(CORE)
+	mkdir -p $(BUILD)/$(MIDDLEWARE) $(BUILD)/$(DRIVER) $(BUILD)/$(CORE) \
+	$(BUILD)/$(MIDDLEWARE)/$(FSM)
 
 flash : $(BIN)
 	$(OPENOCD) -c "program $(BIN) $(FLASH_BASE) verify reset exit"
@@ -64,10 +65,5 @@ $(BUILD)/%_as_.o : $(SRC)/%.s
 	
 	$(AS) -g $< -o $@
 
-
 clean : 
 	@rm -rf $(BUILD)
-
-	
-
-

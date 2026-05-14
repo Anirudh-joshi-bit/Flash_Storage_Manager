@@ -1,10 +1,11 @@
 #include "commons.h"
 #include "usart.h"
 #include "ring_buff.h"
+#include "flash_storage_manager.h"
 
 uint8_t buff[RING_BUFF_SIZE];
 Sector_t flash_sectors [8];
-Ring_buff_t usart1_ring_buffer;
+volatile Ring_buff_t usart1_ring_buffer;
 Packet_t temp;
 Flash_write_buffer_t flash_write_buffer;
 MetaData_block_t metadata;
@@ -31,15 +32,11 @@ int main (void){
   metadata_block_init (&metadata);
 
 
-
-
-
-
   printf ("give me some data", 0x0);
 
-  while (usart1_ring_buffer.size < 30);
+  while (Ring_buff_size(&usart1_ring_buffer) < 31);
 
-  Ring_buff_read (&usart1_ring_buffer, buff, RING_BUFF_SIZE);    
+  Ring_buff_read (&usart1_ring_buffer, buff, RING_BUFF_SIZE);
   printf ("read from ring buffer", 0x0);
 
 

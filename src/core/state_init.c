@@ -1,11 +1,12 @@
-#include "defines.h"
+#include "flash_storage_manager.h"
 
 int8_t packet_init(Packet_t *pkt, uint32_t data_size) {
   if (data_size > MAX_DATA_BLOCK_SIZE / 4 - PACKET_MEMBER_COUNT + 1)
     return -1;
 
   pkt->data_size = data_size;
-  pkt->valid = VALID_FLASH;
+  pkt->removed = VALID_FLAG;
+  pkt->valid = VALID_FLAG;
 
   return 0;
 }
@@ -79,7 +80,7 @@ int8_t metadata_block_init (MetaData_block_t *mdb){
 
 int8_t keyAddr_pair_init (KeyAddr_pair_t *kap, uint32_t key, void *addr){
 
-  if (key == VALID_FLASH ||
+  if (key == VALID_FLAG ||
       addr < (void *) 0x08000000 ||
       addr > (void *) 0x08080000){
 

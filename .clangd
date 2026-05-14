@@ -1,0 +1,14 @@
+CompileFlags:
+  Add:
+    - -I../../../include
+    - -I../../../include/cmsis
+    - -I../../../include/device
+    - -I../../include
+    - -I../../include/cmsis
+    - -I../../include/device
+    - -I../include
+    - -I../include/cmsis
+    - -I../include/device
+    - -Iinclude
+    - -Iinclude/cmsis
+    - -Iinclude/device
