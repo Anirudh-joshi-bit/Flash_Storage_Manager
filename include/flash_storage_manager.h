@@ -1,6 +1,9 @@
 #pragma once
+
 #include <stdint.h>
 #include <stdbool.h>
+#include "ring_buff.h"
+#include "queue.h"
 
 
 // defines
@@ -75,12 +78,32 @@ typedef struct __record_next_ptr_ele_t {
   
 
 
-};
+}record_next_ptr_ele_t;
+
 typedef struct __record_next_ptr_t {
   
 
 
-};
+} record_next_ptr_t;
+
+/* 
+ pairing ring buffer and record request ... ring buffer is from where requests
+ will be served 
+*/
+typedef struct __FSM_record_request {
+  
+  Ring_buff_t *rb;
+  queue_t *q;
+
+} FSM_record_request;
+
+
+/* request -> key to uniquely identfy a record, size of the record*/
+typedef struct __FSM_request_pair {
+  uint8_t *key;
+  uint32_t size;
+
+} FSM_request_pair;
 
 // functions
  
@@ -89,6 +112,8 @@ int8_t sector_init (Sector_t *sector, void *address);
 int8_t flash_write_buffer_init (Flash_write_buffer_t *wb);
 int8_t metadata_block_init (MetaData_block_t *mdb);
 int8_t keyAddr_pair_init (KeyAddr_pair_t *kap, uint32_t key, void *addr);
+void FSM_record_request_init (FSM_record_request *rr, void *request_array,
+                              uint32_t size);
 
 
 // flash storage manager functions

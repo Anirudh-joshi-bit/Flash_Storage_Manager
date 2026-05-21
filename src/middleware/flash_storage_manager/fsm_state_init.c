@@ -1,4 +1,6 @@
 #include "flash_storage_manager.h"
+#include "queue.h"
+#include "ring_buff.h"
 
 int8_t packet_init(Packet_t *pkt, uint32_t data_size) {
   if (data_size > MAX_DATA_BLOCK_SIZE / 4 - PACKET_MEMBER_COUNT + 1)
@@ -93,5 +95,14 @@ int8_t keyAddr_pair_init (KeyAddr_pair_t *kap, uint32_t key, void *addr){
 
   return 0;
 }
+
+
+/* array, size is to init rr-> q*/
+
+void FSM_record_request_init(FSM_record_request *rr, void *request_array, uint32_t size){
+  Ring_buff_init(rr->rb);
+  queue_init(rr->q, request_array, size);
+}
+
 
 
