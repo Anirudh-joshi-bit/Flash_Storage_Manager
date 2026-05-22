@@ -121,6 +121,19 @@ SysTick_Handler :
 
     .size USART1_IRQHandler, . - USART1_IRQHandler 
 
+/************************ USART2_IRQHandler **********************/
+.section .text.USART2_IRQHandler
+.global  USART2_IRQHandler
+.type USART2_IRQHandler, %function
+ USART2_IRQHandler :
+
+    push {lr}
+    bl USART2_IRQHandler_c
+    pop {lr}
+
+    bx lr
+
+    .size USART2_IRQHandler, . - USART2_IRQHandler 
 
 /***************************** vtable *******************************/
 
@@ -151,6 +164,7 @@ vector_table:
         .word Default_Handler
     .endr
     .word USART1_IRQHandler
+    .word USART2_IRQHandler
 
 .size vector_table, . - vector_table
 

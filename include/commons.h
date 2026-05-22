@@ -6,7 +6,8 @@
 #include <stddef.h>
 
 uint32_t strlen(const char *msg);
-void printf(const char *msg, uint32_t address);
+// pass the function pointer to printf
+void printf(void (*usartx_print) (const char*, uint32_t), const char *msg, ...);
 
 
 

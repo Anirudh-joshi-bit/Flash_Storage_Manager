@@ -1,4 +1,5 @@
 #include "commons.h"
+#include "usart.h"
 
 #define MAX_STR_SIZE 100
 #define KEY1 0x45670123
@@ -8,11 +9,11 @@ void flash_write(const uint32_t *buff, uint32_t size, uint32_t sector,
                  uint32_t address) {
 
   if (address % 4) {
-    printf("invalid address\n\r", 0x0);
+    printf(__usart1_print, "invalid address\n\r");
     return;
   }
   if (sector > 7 || sector < 0) { // there are 8 sectors
-    printf("sector does not exist\n\r", 0x0);
+    printf(__usart1_print, "sector does not exist\n\r");
     return;
   }
   FLASH->SR |= FLASH_SR_EOP |    // End of operation
@@ -57,7 +58,7 @@ void flash_write(const uint32_t *buff, uint32_t size, uint32_t sector,
     *((uint32_t *)address) = buff[i++];
     address += 4;
   }
-  printf("wrote to the flash \n\r", 0x0);
+  printf(__usart1_print, "wrote to the flash \n\r");
   // wait for the writing to be complete
   while (FLASH->SR & FLASH_SR_BSY)
     ;

@@ -1,7 +1,6 @@
 #include "queue.h"
 
 
-
 void queue_init (queue_t *q, void *array, uint32_t size){
   q-> array = array;
   q-> capacity = size;

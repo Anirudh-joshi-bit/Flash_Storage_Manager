@@ -5,6 +5,8 @@
 
 
 // not a circular queue
+// capasity in bytes
+
 typedef struct __queue_t{
 
   void* array;
@@ -13,7 +15,6 @@ typedef struct __queue_t{
   uint32_t rear;
 
 }queue_t;
-
 
 void queue_init (queue_t *q, void *array, uint32_t size);
 bool queue_empty (queue_t *q);

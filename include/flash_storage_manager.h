@@ -45,12 +45,12 @@ typedef struct __Sector_t {
 
 } Sector_t;
 
-typedef struct __Flash_write_buffer_t {
+typedef struct __FSM_write_buffer_t {
 
     uint32_t size;
-    uint8_t data[MAX_FLASH_WRITE_BUFFER_SIZE]; 
+    uint8_t *data;
 
-} Flash_write_buffer_t;
+} FSM_write_buffer_t;
 
 typedef struct __KeyAddr_pair_t {
     // this is record !!!
@@ -90,31 +90,30 @@ typedef struct __record_next_ptr_t {
  pairing ring buffer and record request ... ring buffer is from where requests
  will be served 
 */
-typedef struct __FSM_record_request {
+typedef struct __FSM_record_request_t {
   
-  Ring_buff_t *rb;
-  queue_t *q;
+  volatile Ring_buff_t *rb;
+  volatile queue_t *q;
 
-} FSM_record_request;
+} FSM_record_request_t;
 
 
 /* request -> key to uniquely identfy a record, size of the record*/
-typedef struct __FSM_request_pair {
+typedef struct __FSM_request_pair_t {
   uint8_t *key;
   uint32_t size;
 
-} FSM_request_pair;
+} FSM_request_pair_t;
 
 // functions
  
 int8_t packet_init (Packet_t *pkt, uint32_t data_size);
 int8_t sector_init (Sector_t *sector, void *address);
-int8_t flash_write_buffer_init (Flash_write_buffer_t *wb);
 int8_t metadata_block_init (MetaData_block_t *mdb);
 int8_t keyAddr_pair_init (KeyAddr_pair_t *kap, uint32_t key, void *addr);
-void FSM_record_request_init (FSM_record_request *rr, void *request_array,
-                              uint32_t size);
-
+void FSM_record_request_init (FSM_record_request_t *rr, volatile Ring_buff_t *rb, queue_t *q);
+void FSM_write_buffer_init (FSM_write_buffer_t *fsm_wb, uint8_t *buffer, uint32_t size);
+void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key, uint32_t size);
 
 // flash storage manager functions
 
