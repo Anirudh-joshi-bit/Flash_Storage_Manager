@@ -1,16 +1,11 @@
 #include "flash_storage_manager.h"
 #include "queue.h"
 #include "ring_buff.h"
+#include <stdatomic.h>
 
-int8_t packet_init(Packet_t *pkt, uint32_t data_size) {
-  if (data_size > MAX_DATA_BLOCK_SIZE / 4 - PACKET_MEMBER_COUNT + 1)
-    return -1;
 
-  pkt->data_size = data_size;
-  pkt->removed = VALID_FLAG;
-  pkt->valid = VALID_FLAG;
+bool FSM_Packet_init(FSM_Packet_t *pkt, uint32_t *data_buff, uint16_t data_size) {
 
-  return 0;
 }
 
 int8_t sector_init(Sector_t *sector, void *address) {
@@ -91,9 +86,52 @@ void FSM_record_request_init(FSM_record_request_t *rr, volatile Ring_buff_t *rb,
 
 void FSM_write_buffer_init (FSM_write_buffer_t *fsm_wb, uint8_t *buffer, uint32_t size){
   fsm_wb -> data = buffer;
-  fsm_wb -> size = size;
+  fsm_wb -> capacity = size;
+  fsm_wb -> size = 0;
 
 }
+
+// to write packet and data into the write buffer, we need to have packet and
+// ring buffer where the data lives !!! 
+// data will be extraced from the write buffer
+uint8_t FSM_write_buffer_write (FSM_write_buffer_t *fsm_wb, FSM_Packet_header_t*
+                        fsm_packet, Ring_buff_t *rb, uint32_t data_size){
+  // limit check
+  if (data_size > MAX_PACKET_SIZE - sizeof (FSM_Packet_header_t))
+    return 1;
+
+  // if cannot be written to the wb, then copy the whole data into flash and continue
+  // todo !!!!!
+  
+
+  // fsm_wb-> size is in bytes
+  uint8_t *wb_end = (uint8_t *)fsm_wb + fsm_wb -> size;
+
+  // copy packet ->  
+  *((uint32_t *) wb_end++) = fsm_packet-> data_size;
+  *((FSM_Packet_header_t **) wb_end++) = fsm_packet-> next_packet;
+  *((uint32_t *) wb_end++) = fsm_packet-> removed;
+  *((uint32_t *) wb_end++) = fsm_packet-> valid;
+
+
+  uint32_t temp_size = MAX_PACKET_SIZE - sizeof (FSM_Packet_header_t);
+  if (temp_size > data_size ) temp_size = data_size;
+
+  uint8_t data[temp_size];
+  Ring_buff_read(rb, data, temp_size);
+ 
+  for (int i=0; i<data_size; i++){
+    *(wb_end++) = data[i];
+  }
+
+  // update the size of fsm_wb
+  fsm_wb -> size += temp_size + sizeof (FSM_Packet_header_t);
+
+  return 0;
+}
+
+
+
 
 void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key, uint32_t size){
   

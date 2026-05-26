@@ -12,7 +12,7 @@ bool queue_empty (queue_t *q){
   return q-> front == q-> rear;
 }
 uint32_t queue_size (queue_t *q){
-  return q-> rear - q-> rear;
+  return q-> rear - q-> front;
 }
 bool queue_push (queue_t *q, void *element, uint32_t ele_size){
   if (q->capacity < ele_size + q->rear - q->front) return false;
