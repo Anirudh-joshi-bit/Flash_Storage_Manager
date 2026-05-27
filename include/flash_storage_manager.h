@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "ring_buff.h"
 #include "queue.h"
+#include "flash.h"
+#include "garbage_collector.h"
 
 
 // defines
@@ -11,14 +13,6 @@
 #define MAX_FLASH_WRITE_BUFFER_SIZE         6*1024          // 6kB
 #define MAX_FLAG_COUNT                      2
 #define VALID_FLAG                          0xffffffff
-#define FLASH_SECTOR0_Addr                  0x08000000      // 16kB
-#define FLASH_SECTOR1_Addr                  0x08004000      // 16kB
-#define FLASH_SECTOR2_Addr                  0x08008000      // 16kB
-#define FLASH_SECTOR3_Addr                  0x0800C000      // 16kB
-#define FLASH_SECTOR4_Addr                  0x08010000      // 64kB
-#define FLASH_SECTOR5_Addr                  0x08020000      // 128kB
-#define FLASH_SECTOR6_Addr                  0x0803ffff      // 128kB
-#define FLASH_SECTOR7_Addr                  0x08060000      // 128kB
 #define FLAGS_INIT_VALUE                    0x0fffffff
 
 
@@ -105,7 +99,7 @@ typedef struct __FSM_request_pair_t {
 
 // functions
  
-int8_t packet_init (FSM_Packet_t *pkt, uint32_t data_size);
+int8_t packet_init (FSM_Packet_header_t *pkt, uint32_t data_size);
 int8_t sector_init (Sector_t *sector, void *address);
 int8_t metadata_block_init (MetaData_block_t *mdb);
 int8_t keyAddr_pair_init (KeyAddr_pair_t *kap, uint32_t key, void *addr);
@@ -118,4 +112,6 @@ void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key, uint32_t size)
 int8_t FSM_write (void *buffer, uint16_t size, bool continuity);
 bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size);
 
+bool FSM_flash_write (FSM_write_buffer_t* fsm_wb,  uint32_t *address, 
+                            Sector_t flash_sectors[8]);
 

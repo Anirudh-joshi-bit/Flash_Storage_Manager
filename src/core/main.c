@@ -6,7 +6,6 @@
 
 uint8_t buff[RING_BUFF_SIZE];
 Sector_t flash_sectors[8];
-FSM_Packet_t temp;
 MetaData_block_t metadata;
 
 volatile Ring_buff_t usart1_ring_buffer;
@@ -67,7 +66,6 @@ int main(void) {
   sector_init(&flash_sectors[6], (void *)FLASH_SECTOR6_Addr);
   sector_init(&flash_sectors[7], (void *)FLASH_SECTOR7_Addr);
 
-  packet_init(&temp, MAX_PACKET_DATA_SIZE);
 
   FSM_write_buffer_init (&fsm_wb, wb, sizeof (wb));
   metadata_block_init(&metadata);
