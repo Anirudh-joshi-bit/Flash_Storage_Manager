@@ -13,5 +13,5 @@
 void flash_write(const uint32_t *buff, uint32_t size, uint32_t sector, uint32_t address); 
 void flash_erase();
 uint32_t flash_get_sector (uint32_t *address);
-uint32_t flash_get_sector_address (uint32_t sector_number);
+uint32_t *flash_get_sector_address (uint32_t sector_number);
 uint32_t flash_get_sector_size (uint32_t sector_number);

@@ -18,7 +18,7 @@ bool queue_push (queue_t *q, void *element, uint32_t ele_size){
   if (q->capacity < ele_size + q->rear - q->front) return false;
   uint8_t *ele = (uint8_t *) element;
   for (uint32_t i=0; i<ele_size; i++ ){
-    *(uint8_t *)(q-> array) = ele[i];
+    *(uint8_t *)(q-> array+ q->rear +i) = ele[i];
   }
   q-> rear += ele_size;
   return true;
@@ -35,3 +35,16 @@ bool queue_pop (queue_t *q, uint32_t ele_size){
   }
   return true;
 }
+
+void queue_front (queue_t *q, uint32_t size, uint8_t *data){
+  for (uint32_t i=0; i<size; i++){
+    *(data +i) = *(uint8_t *)(q-> array + q-> front+i);
+  }
+}
+
+void queue_back (queue_t *q, uint32_t size, uint8_t *data){
+  for (uint32_t i=0; i<size; i++){
+    *(data +i) = *(uint8_t *)(q-> array + q-> rear-size+i);
+  }
+}
+

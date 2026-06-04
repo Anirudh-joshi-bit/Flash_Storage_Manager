@@ -8,36 +8,36 @@
 
  
 
-uint32_t flash_get_sector_address (uint32_t sector_number){
+uint32_t *flash_get_sector_address (uint32_t sector_number){
   switch (sector_number){
     case 0:
-      return FLASH_SECTOR0_Addr;
+      return (uint32_t *)FLASH_SECTOR0_Addr;
     break;
     case 1:
-      return FLASH_SECTOR1_Addr;
+      return (uint32_t *)FLASH_SECTOR1_Addr;
     break;
     case 2:
-      return FLASH_SECTOR2_Addr;
+      return (uint32_t *)FLASH_SECTOR2_Addr;
     break;
     case 3:
-      return FLASH_SECTOR3_Addr;
+      return (uint32_t *)FLASH_SECTOR3_Addr;
     break;
     case 4:
-      return FLASH_SECTOR4_Addr;
+      return (uint32_t *)FLASH_SECTOR4_Addr;
     break;
     case 5:
-      return FLASH_SECTOR5_Addr;
+      return (uint32_t *)FLASH_SECTOR5_Addr;
     break;
     case 6:
-      return FLASH_SECTOR6_Addr;
+      return (uint32_t *)FLASH_SECTOR6_Addr;
     break;
     case 7:
-      return FLASH_SECTOR7_Addr;
+      return (uint32_t *)FLASH_SECTOR7_Addr;
     break;
     default:
     break;
   }
-  return -1;
+  return NULL;
 }
 
 uint32_t flash_get_sector_size  (uint32_t sector_number){
@@ -127,6 +127,7 @@ uint32_t erase_flash(uint32_t *address) {
   FLASH->CR |= FLASH_CR_STRT;
 
   // wait for the flash to be erased;
+  // this is not needed , erase the flash in background
   while (FLASH->SR & FLASH_SR_BSY)
     ;
 
