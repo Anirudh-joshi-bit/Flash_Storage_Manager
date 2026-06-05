@@ -14,7 +14,7 @@ bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size){
       uint32_t data_size = FSM_PACKET_DATA_SIZE;
 
       // todo
-      if (rr->q.front)
+      if (rr->q->front)
 
       uint8_t data_buffer[FSM_PACKET_DATA_SIZE]
     }

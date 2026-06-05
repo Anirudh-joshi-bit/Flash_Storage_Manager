@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 
 #define RING_BUFF_SIZE              10*1024    // 10kB
 

@@ -39,6 +39,8 @@ void __usart1_init(void) {
   NVIC_EnableIRQ(USART1_IRQn);
 }
 
+
+
 void __usart2_init (void){
 
   RCC->APB1ENR |= RCC_APB1ENR_USART2EN_Msk;
@@ -50,7 +52,7 @@ void __usart2_init (void){
   GPIOA->OSPEEDR |= (3 << (U2_TX * 2)) | (3 << (U2_RX * 2));
   // clear the bits in AFRL register
   GPIOA->AFR[0] &= ~((0xf << 12) | (0xf << 8));
-  // set for af7
+  // set for af7usartusart
   GPIOA->AFR[0] |= (7 << 12) | (7 << 8);
 
   // set the baud rate (115200 in this case)
@@ -80,7 +82,7 @@ void __usart6_init (void){
   // clear the bits in AFRL register
   GPIOC->AFR[0] &= ~((0xf << 24) | (0xf << 28));
   // set for af7
-  GPIOC->AFR[0] |= (7 << 24) | (7 << 28);
+  GPIOC->AFR[0] |= (8 << 24) | (8 << 28);
 
   // set the baud rate (115200 in this case)
   USART6->BRR = 0x08B;

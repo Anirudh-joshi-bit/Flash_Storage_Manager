@@ -26,6 +26,8 @@ uint8_t FSM_write_buffer_write(FSM_write_buffer_t *fsm_wb,
   uint8_t *wb_end = (uint8_t *)fsm_wb + fsm_wb->size;
 
   // copy packet ->
+  // change this !!!
+  // todo
   *((uint32_t *)wb_end++) = fsm_packet->flag;
   *((uint32_t *)wb_end++) = fsm_packet->packet_size;
   *((uint32_t *)wb_end++) = fsm_packet->data_size;
