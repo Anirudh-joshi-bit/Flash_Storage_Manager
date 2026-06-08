@@ -11,16 +11,18 @@
 
 // defines
 
-
+// packet
 #define FSM_PACKET_DESCRIPTOR_SIZE_MSK      ((1<<20) -1)  // 19 ones
-#define FSM_PACKET_DESCRIPTORE_VALID_MSK    (1<<20)
-#define FSM_PACKET_DESCRIPTOR_NREMOVED_MSK   (1<<21)
+#define FSM_PACKET_DESCRIPTOR_VALID_MSK     (1<<20)
+#define FSM_PACKET_DESCRIPTOR_NREMOVED_MSK  (1<<21)
 #define FSM_PACKET_DESCRIPTOR_HEAD_MSK      (~0U<<21)
 
+// metadata
 #define FSM_METADATA_DESCRIPTOR_SIZE_MSK    ((1<<20) -1)  // 19 ones
 #define FSM_METADATA_DESCRIPTOR_VALID_MSK   (1<<20)
 #define FSM_METADATA_DESCRIPTOR_HEAD_MSK    (~0U<<21)
 
+// general
 #define FSM_PKT_HEAD                        0x3ff<<21       // 01111111111
 #define FSM_MD_HEAD                         0x1ff<<21       // 00111111111
 #define FSM_WRITE_BUFFER_SIZE               10*1024

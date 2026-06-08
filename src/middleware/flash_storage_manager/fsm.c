@@ -3,6 +3,72 @@
 #include "queue.h"
 #include "ring_buff.h"
 
+
+/* 
+ note !!! for setting functions of packet_header and metadata_header
+
+ the fileds are not cleared before writing the value as most of 
+ the time packet header is located in the   flash ... clearing bits 
+ will result in all bits of the field to set to 0... writing / setting a 
+ bit in the field will require erasing the entire flash sector
+
+ option -> set (0), set (value)   follow this sequence if you want to clear 
+ the field before writting to it 
+*/
+
+// packet_header get functions
+uint32_t FSM_packet_get_size (FSM_Packet_header_t* pkt_header){
+  return pkt_header-> packet_descriptor & FSM_PACKET_DESCRIPTOR_SIZE_MSK;
+}
+// return vlaue will not relocate the head  sectionn to the front !!!
+uint32_t FSM_packet_get_head (FSM_Packet_header_t* pkt_header){
+  return pkt_header-> packet_descriptor & FSM_PACKET_DESCRIPTOR_HEAD_MSK;
+}
+bool FSM_packet_is_removed (FSM_Packet_header_t* pkt_header){
+  return !(pkt_header-> packet_descriptor &
+                  FSM_PACKET_DESCRIPTOR_NREMOVED_MSK);
+}
+bool FSM_packet_is_valid (FSM_Packet_header_t* pkt_header){
+  return !(pkt_header-> packet_descriptor &
+                  FSM_PACKET_DESCRIPTOR_VALID_MSK);
+}
+
+// set fuinctions => (packet, metadata)
+void FSM_packet_set_size (FSM_Packet_header_t* pkt_header, uint32_t size){
+  size &= FSM_PACKET_DESCRIPTOR_SIZE_MSK;
+  pkt_header-> packet_descriptor |= size;
+}
+
+void FSM_packet_set_head (FSM_Packet_header_t* pkt_header, uint32_t head){
+  head &= FSM_PACKET_DESCRIPTOR_HEAD_MSK;
+  pkt_header-> packet_descriptor |= head;
+}
+
+void FSM_metadata_set_head (FSM_MetaData_header_t* md_header, uint32_t head){
+  head &= FSM_METADATA_DESCRIPTOR_HEAD_MSK;
+  md_header-> metadata_descriptor |= head;
+}
+
+void FSM_metadata_set_size (FSM_MetaData_header_t* md_header, uint32_t size){
+  size &= FSM_METADATA_DESCRIPTOR_SIZE_MSK;
+  md_header-> metadata_descriptor |= size;
+}
+
+// metadata_header get functions
+uint32_t FSM_metadata_get_size (FSM_MetaData_header_t* md_header){
+ return md_header-> metadata_descriptor & FSM_METADATA_DESCRIPTOR_SIZE_MSK;
+}
+// return vlaue will not relocate the head sectionn to the front !!!
+uint32_t FSM_metadata_get_header (FSM_MetaData_header_t* md_header){
+ return md_header-> metadata_descriptor & FSM_METADATA_DESCRIPTOR_HEAD_MSK;
+}
+bool FSM_metadata_is_valid (FSM_MetaData_header_t* md_header){
+ return md_header-> metadata_descriptor & FSM_METADATA_DESCRIPTOR_VALID_MSK;
+}
+
+
+
+// init functins -> 
 void FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
 
   uint32_t min_size = data_size + sizeof(FSM_Packet_header_t);
@@ -11,7 +77,7 @@ void FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
 
   pkt->packet_descriptor = 0;
   pkt->packet_descriptor |= (FSM_PKT_HEAD & FSM_PACKET_DESCRIPTOR_HEAD_MSK) |
-                            FSM_PACKET_DESCRIPTORE_VALID_MSK |
+                            FSM_PACKET_DESCRIPTOR_VALID_MSK |
                             FSM_PACKET_DESCRIPTOR_NREMOVED_MSK |
                             (min_size & FSM_PACKET_DESCRIPTOR_SIZE_MSK);
 }

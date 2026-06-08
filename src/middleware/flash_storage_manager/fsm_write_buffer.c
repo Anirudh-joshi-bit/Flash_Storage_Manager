@@ -7,6 +7,7 @@
 extern FSM_Sector_t flash_sectors[8];
 extern uint32_t *fsm_flash_write_end_address;
 
+
 uint8_t FSM_write_buffer_write(FSM_write_buffer_t *fsm_wb,
                                FSM_Packet_header_t *fsm_packet, 
                                Ring_buff_t *rb, uint32_t data_size) {
@@ -26,14 +27,8 @@ uint8_t FSM_write_buffer_write(FSM_write_buffer_t *fsm_wb,
   uint8_t *wb_end = (uint8_t *)fsm_wb + fsm_wb->size;
 
   // copy packet ->
-  // change this !!!
-  // todo
-  *((uint32_t *)wb_end++) = fsm_packet->flag;
-  *((uint32_t *)wb_end++) = fsm_packet->packet_size;
-  *((uint32_t *)wb_end++) = fsm_packet->data_size;
+  *((uint32_t *)wb_end++) = fsm_packet->packet_descriptor;
   *((FSM_Packet_header_t **)wb_end++) = fsm_packet->next_packet;
-  *((uint32_t *)wb_end++) = fsm_packet->removed;
-  *((uint32_t *)wb_end++) = fsm_packet->valid;
 
   uint32_t temp_size = MAX_PACKET_SIZE - sizeof(FSM_Packet_header_t);
   if (temp_size > data_size)
