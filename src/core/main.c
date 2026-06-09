@@ -39,6 +39,7 @@ int main(void) {
 
   // System init;
   __usart1_init();
+  flash_init ();
   __usart1_print("hii there", 10);
 
   // fsm init
@@ -128,3 +129,8 @@ int main(void) {
     ;
   return 0;
 }
+
+void hang (void){
+  while (1);
+}
+

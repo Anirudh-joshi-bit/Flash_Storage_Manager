@@ -160,9 +160,16 @@ vector_table:
     .word PendSV_Handler        /*  pend sv handler */
     .word SysTick_Handler       /*  systick timer handler */
     
-    .rept 37
+    .rept 4
         .word Default_Handler
     .endr
+
+    .word FLASH_IRQHandler
+ 
+    .rept 32
+        .word Default_Handler
+    .endr
+
     .word USART1_IRQHandler
     .word USART2_IRQHandler
 

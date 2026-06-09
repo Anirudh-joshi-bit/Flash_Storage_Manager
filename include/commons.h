@@ -12,9 +12,7 @@ uint32_t strlen(const char *msg);
 // pass the function pointer to printf
 void printf(void (*usartx_print) (const char*, uint32_t), const char *msg, ...);
 
-inline void hang (void){
-  while (1);
-}
+void hang (void);
 
 
 
