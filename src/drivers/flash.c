@@ -7,7 +7,7 @@
 
 volatile uint8_t flash_state = FLASH_STATE_IDLE;
 volatile uint32_t *isr_buffer;
-volatile uint32_t *isr_flash_write_address;
+volatile void *isr_flash_write_address;
 volatile uint32_t isr_flash_write_size;
 
 // assumes that hclk is 16MHz
@@ -23,7 +23,7 @@ void flash_init (void){
   NVIC_EnableIRQ (FLASH_IRQn);
 }
 
-uint32_t *flash_get_sector_address (uint32_t sector_number){
+void *flash_get_sector_address (uint32_t sector_number){
   switch (sector_number){
     case 0:
       return (uint32_t *)FLASH_SECTOR0_Addr;
@@ -87,30 +87,30 @@ uint32_t flash_get_sector_size  (uint32_t sector_number){
   return -1;
 }
 
-uint32_t flash_get_sector (uint32_t *address){
+uint32_t flash_get_sector (void *address){
 
-  if (address >= (uint32_t *) 0x08060000 && address < (uint32_t *)0x08080000)
+  if (address >= (void *) 0x08060000 && address < (void *)0x08080000)
     return 7;
-  else if (address >= (uint32_t *) 0x08040000)
+  else if (address >= (void *) 0x08040000)
     return 6;
-  else if (address >= (uint32_t *) 0x08020000)
+  else if (address >= (void *) 0x08020000)
     return 5;
-  else if (address >= (uint32_t *) 0x08010000)
+  else if (address >= (void *) 0x08010000)
     return 4;
-  else if (address >= (uint32_t *) 0x0800c000)
+  else if (address >= (void *) 0x0800c000)
     return 3;
-  else if (address >= (uint32_t *) 0x08008000)
+  else if (address >= (void *) 0x08008000)
     return 2;
-  else if (address >= (uint32_t *) 0x08004000)
+  else if (address >= (void *) 0x08004000)
     return 1;
-  else if (address >= (uint32_t *) 0x08000000)
+  else if (address >= (void *) 0x08000000)
     return 0;
 
   return -1;
 
 }
 
-uint32_t erase_flash(uint32_t *address) {
+uint32_t flash_erase(void *address) {
 
   uint32_t sector = flash_get_sector (address);
   if (sector == -1){
@@ -135,13 +135,13 @@ uint32_t erase_flash(uint32_t *address) {
 }
 
 
-void flash_write(uint32_t *buff, uint32_t buff_size, uint32_t address) {
+void flash_write(void *buff, uint32_t buff_size, void *address) {
 
   while (flash_state != FLASH_STATE_IDLE);
 
   // assign buffer (visible to isr)
   isr_buffer = buff;
-  isr_flash_write_address = (uint32_t *)(address);
+  isr_flash_write_address = (void *)(address);
   isr_flash_write_size = buff_size;
 
   // change the state of flash to write
@@ -157,6 +157,6 @@ void flash_write(uint32_t *buff, uint32_t buff_size, uint32_t address) {
   FLASH->CR |= FLASH_CR_PG;
 
   // write one word
-  *(isr_flash_write_address++) = isr_buffer [0];
+  *(uint32_t *)(isr_flash_write_address++) = isr_buffer [0];
 }
 

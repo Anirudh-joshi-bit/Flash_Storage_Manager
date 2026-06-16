@@ -4,6 +4,12 @@
 #include "ring_buff.h"
 #include "usart.h"
 
+
+// debug mode
+#define DEBUG
+
+
+
 uint8_t buff[RING_BUFF_SIZE];
 FSM_Sector_t flash_sectors[8];
 
@@ -34,6 +40,10 @@ FSM_MetaData_header_t *fsm_flash_metadata;         // fill this from flash
 // stores the address of most recent valid  metadata  
 // that is present in the flash
 
+// fsm addresses  =>
+// init in fsm init function
+FSM_addresses_t fsm_addresses;
+
 
 int main(void) {
 
@@ -62,7 +72,7 @@ int main(void) {
 
   // fsm_init
   if (FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
-        fsm_flash_metadata)) {
+        fsm_flash_metadata, &fsm_addresses)) {
     printf (__usart1_print,"error in FSM_init");
     hang ();
   }
@@ -110,8 +120,14 @@ int main(void) {
   rr[1] = rr2;
   rr[2] = rr3;
 
+
+
+  /***********************not for now****************************/
   // make it work for one source request  first
-  FSM_start_serving_request(rr, 1);
+  //FSM_start_serving_request(rr, 1);
+  /***********************not for now****************************/
+
+
 
   /*********************** end serving requests *************************/
 

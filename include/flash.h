@@ -1,4 +1,5 @@
 #pragma once
+#include "stm32f401xe.h"
 #include <stdint.h>
 
 
@@ -20,9 +21,13 @@
 #define FLASH_SECTOR6_Addr                  0x08040000      // 128kB
 #define FLASH_SECTOR7_Addr                  0x08060000      // 128kB
 
+extern volatile uint8_t flash_state;
+
+
 void flash_init (void);
-void flash_write(uint32_t *buff, uint32_t size, uint32_t address);
-uint32_t erase_flash(uint32_t *address);
-uint32_t flash_get_sector (uint32_t *address);
-uint32_t *flash_get_sector_address (uint32_t sector_number);
+void flash_write(void *buff, uint32_t size, void *address);
+uint32_t flash_erase(void *address);
+uint32_t flash_get_sector (void  *address);
+void *flash_get_sector_address (uint32_t sector_number);
 uint32_t flash_get_sector_size (uint32_t sector_number);
+

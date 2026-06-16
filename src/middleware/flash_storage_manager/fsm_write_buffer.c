@@ -5,7 +5,7 @@
 // data will be extraced from the write buffer
 
 extern FSM_Sector_t flash_sectors[8];
-extern uint32_t *fsm_flash_write_end_address;
+extern void *fsm_flash_write_end_address;
 
 
 uint8_t FSM_write_buffer_write(FSM_write_buffer_t *fsm_wb,
