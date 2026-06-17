@@ -6,15 +6,20 @@
 #include "stm32f401xe.h"
 
 
+#define DEBUG 
 
 // functions declarations 
 bool FSM_copy_metadata_to_md_sector_helper (void *dest, void *src);
+void *FSM_get_gc_end_add (uint8_t sector);
+void *FSM_get_md_end_add (uint8_t sector);
+void *FSM_get_log_end_add (uint8_t st_sector, uint8_t en_sector);
 
 //#define DEBUG
 
 // debug
 #ifdef DEBUG
-void printf(void (*usartx_print) (const char*, uint32_t), const char *msg, ...);
+void printf(void (*usartx_print) (const char*, uint32_t),
+          const char *msg, ...);
 void __usart1_print(const char *msg, uint32_t size);
 #endif
 // debug end
@@ -32,53 +37,43 @@ void __usart1_print(const char *msg, uint32_t size);
  the field before writting to it
 */
 
-// packet_header get functions
-// assumption -> 
-// 0. size returned is in bytes
+// md, pkt common functions 
+uint32_t FSM_md_pkt_get_head(void *pkt_header) {
+  // or packet
+  return ((FSM_MetaData_header_t *)pkt_header)->metadata_descriptor &
+              FSM_MD_PKT_DESCRIPTOR_HEAD_MSK;
+}
+void FSM_md_pkt_set_head(void *md_header, uint32_t head) {
+  head &= FSM_MD_PKT_DESCRIPTOR_HEAD_MSK;
+  // or packet
+  ((FSM_MetaData_header_t *)md_header)->metadata_descriptor |= head;
+}
+
+
+// packet getters and setters 
 uint32_t FSM_packet_get_size(FSM_Packet_header_t *pkt_header) {
   return pkt_header->packet_descriptor & FSM_PACKET_DESCRIPTOR_SIZE_MSK;
 }
-// return vlaue will not relocate the head  sectionn to the front !!!
-uint32_t FSM_packet_get_head(FSM_Packet_header_t *pkt_header) {
-  return pkt_header->packet_descriptor & FSM_PACKET_DESCRIPTOR_HEAD_MSK;
-}
 bool FSM_packet_is_removed(FSM_Packet_header_t *pkt_header) {
-  return !(pkt_header->packet_descriptor & FSM_PACKET_DESCRIPTOR_NREMOVED_MSK);
+  return !(pkt_header->packet_descriptor &
+      FSM_PACKET_DESCRIPTOR_NREMOVED_MSK);
 }
 bool FSM_packet_is_valid(FSM_Packet_header_t *pkt_header) {
   return !(pkt_header->packet_descriptor & FSM_PACKET_DESCRIPTOR_VALID_MSK);
 }
-
-// set fuinctions => (packet, metadata)
 void FSM_packet_set_size(FSM_Packet_header_t *pkt_header, uint32_t size) {
   size &= FSM_PACKET_DESCRIPTOR_SIZE_MSK;
   pkt_header->packet_descriptor |= size;
 }
 
-void FSM_packet_set_head(FSM_Packet_header_t *pkt_header, uint32_t head) {
-  head &= FSM_PACKET_DESCRIPTOR_HEAD_MSK;
-  pkt_header->packet_descriptor |= head;
-}
 
-void FSM_metadata_set_head(FSM_MetaData_header_t *md_header, uint32_t head) {
-  head &= FSM_METADATA_DESCRIPTOR_HEAD_MSK;
-  md_header->metadata_descriptor |= head;
-}
-
+// metadaata getters and setters
 void FSM_metadata_set_size(FSM_MetaData_header_t *md_header, uint32_t size) {
   size &= FSM_METADATA_DESCRIPTOR_SIZE_MSK;
   md_header->metadata_descriptor |= size;
 }
-
-// metadata_header get functions
-// assumptions -> 
-// 0. size is in bytes 
 uint32_t FSM_metadata_get_size(FSM_MetaData_header_t *md_header) {
   return md_header->metadata_descriptor & FSM_METADATA_DESCRIPTOR_SIZE_MSK;
-}
-// return vlaue will not relocate the head sectionn to the front !!!
-uint32_t FSM_metadata_get_header(FSM_MetaData_header_t *md_header) {
-  return md_header->metadata_descriptor & FSM_METADATA_DESCRIPTOR_HEAD_MSK;
 }
 bool FSM_metadata_is_valid(FSM_MetaData_header_t *md_header) {
   return md_header->metadata_descriptor & FSM_METADATA_DESCRIPTOR_VALID_MSK;
@@ -113,15 +108,15 @@ FSM_MetaData_header_t* find_last_metadata_in_gc (uint32_t * gc_sector_add){
   FSM_MetaData_header_t* last_metadata = NULL;
 
   while (gc_iter < gc_end_add){
-    if ((*gc_iter & FSM_METADATA_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
+    if ((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
       // this is a metadata
       last_metadata = (FSM_MetaData_header_t *)gc_iter;
       uint32_t md_size = 
                 FSM_metadata_get_size ((FSM_MetaData_header_t*) gc_iter);
       gc_iter += md_size/4;
     }else
-    if (((*gc_iter & FSM_PACKET_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) || 
-       ((*gc_iter & FSM_PACKET_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
+    if (((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) || 
+       ((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
       // this is a packet
       uint32_t pkt_size = 
                 FSM_packet_get_size ((FSM_Packet_header_t*) gc_iter);
@@ -141,7 +136,7 @@ void FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
 
   pkt->packet_descriptor = 0;
   pkt->packet_descriptor |= (FSM_PKT_HEAD_INCO &
-                            FSM_PACKET_DESCRIPTOR_HEAD_MSK) |
+                            FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
                             FSM_PACKET_DESCRIPTOR_VALID_MSK |
                             FSM_PACKET_DESCRIPTOR_NREMOVED_MSK |
                             (min_size & FSM_PACKET_DESCRIPTOR_SIZE_MSK);
@@ -151,7 +146,7 @@ void metadata_header_init(FSM_MetaData_header_t *mdh, uint32_t metadata_size) {
 
   mdh->metadata_descriptor = 0;
   mdh->metadata_descriptor |=
-      (FSM_MD_HEAD_INCO & FSM_METADATA_DESCRIPTOR_HEAD_MSK) |
+      (FSM_MD_HEAD_INCO & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
       FSM_METADATA_DESCRIPTOR_VALID_MSK |
       (metadata_size & FSM_METADATA_DESCRIPTOR_SIZE_MSK);
 }
@@ -257,17 +252,35 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   metadata_header_init(metadata_in_ram, 0); // check
 
   // find the gc_sector
-  uint32_t *gc_sector = flash_get_sector_address(7);
-  if (*gc_sector != FSM_GC_SECTOR_ID)
+  void *gc_sector = flash_get_sector_address(7);
+  if (*(uint32_t *)gc_sector != FSM_GC_SECTOR_ID)
     gc_sector = flash_get_sector_address(6);
-  if (*gc_sector != FSM_GC_SECTOR_ID)
+  if (*(uint32_t *)gc_sector != FSM_GC_SECTOR_ID)
     gc_sector = flash_get_sector_address(5);
 
 
 
 
     // init the addresses 
+    addresses -> gc_sector_add = flash_get_sector_address(7);
+    // first word of gc if 0xffffffff
+    addresses -> gc_end_add = FSM_get_gc_end_add(7) + 4; 
+    
+    if (addresses-> gc_end_add >= flash_get_sector_address(7) +
+            flash_get_sector_size(7)){
+    
+    #ifdef DEBUG
+      printf (__usart1_print, "in FSM_init function, gc_end is exceeding the"
+          "7th sector boundary \n\r");
+    #endif 
+      flash_erase (addresses->gc_sector_add);
+    }
 
+    // sector 1 is for metadata
+    addresses -> md_sector_add = flash_get_sector_address(1);
+    addresses -> md_end_add = FSM_get_md_end_add (1);
+    addresses -> log_end_add = FSM_get_log_end_add (2);
+    
 
 
 
@@ -293,7 +306,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   while (iter_flash < metadata_sector_address + metadata_sector_size) {
     //  search the metadata
     uint32_t md_sector_header = *iter_flash & 
-                          FSM_METADATA_DESCRIPTOR_HEAD_MSK;
+                          FSM_MD_PKT_DESCRIPTOR_HEAD_MSK;
     if (*iter_flash == 0xffffffff) {
       // fsm has never started     
       metadata_header_init (metadata_in_ram, 0);
@@ -390,7 +403,16 @@ bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
   addresses-> md_end_add += md_size;
     return 1;
 }
- 
+
+/*
+ * assumption -> 
+ *  1. there is enough space to copy
+ *  2. dest is in the flash range
+ *  
+ * perpose -> run a while loop and copy the data from src to dest
+ *
+ * */
+
 bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
 
   // destination is always a flassh address !!! 
@@ -404,7 +426,7 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   void *iter = src;
 
   #ifdef DEBUG
-  if ((metadata_descriptor & FSM_METADATA_DESCRIPTOR_HEAD_MSK) != 
+  if ((metadata_descriptor & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) != 
       FSM_MD_HEAD_CO && flash_get_sector(dest) != -1)  {
 
     printf (__usart1_print, "in FSM_copy_metadata_to_md_sector function,"
@@ -412,7 +434,7 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   }
   #endif
 
-  metadata_descriptor &= ~FSM_METADATA_DESCRIPTOR_HEAD_MSK; // clear the head
+  metadata_descriptor &= ~FSM_MD_PKT_DESCRIPTOR_HEAD_MSK; // clear the head
   metadata_descriptor |= FSM_MD_HEAD_INCO; // set incomplete bits
  
 
@@ -472,3 +494,79 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
 }
 
 
+/*
+ * retutns gc_end_address
+ * */
+
+void *FSM_get_gc_end_add (uint8_t sector){
+  // first word of the gc sector is 0xffffffff
+  void *iter = flash_get_sector_address (sector) + 4;
+  void *sector_end = iter + flash_get_sector_size(sector) - 4;
+
+  while (iter < sector_end) {
+    uint32_t word = *(uint32_t *)iter;
+    if (word == 0xffffffff) return iter;
+    uint32_t head = FSM_md_pkt_get_head(iter);
+    uint32_t md_pkt_size = 0;
+    if (head == FSM_MD_HEAD_CO || head == FSM_MD_HEAD_INCO){
+      // md_head
+      md_pkt_size = FSM_metadata_get_size (iter);
+    }
+    else if (head == FSM_PKT_HEAD_CO || head == FSM_PKT_HEAD_INCO){
+      // pkt head
+      md_pkt_size = FSM_packet_get_size (iter);
+    }
+
+    #ifdef DEBUG
+    else{
+      printf (__usart1_print, "in fsm_get_gc_end_add function,"
+              "head is not 0xffffffff or FSM_MD(PKT)_HEAD_CO/INCO");
+    }
+    #endif
+    
+    iter += md_pkt_size;
+  }
+  return iter;
+}
+
+void *FSM_get_md_end_add (uint8_t sector){
+
+  void *iter = flash_get_sector_address(sector);
+  void *sector_end = iter + flash_get_sector_size(sector);
+
+  while (iter < sector_end && *(uint32_t *)iter != 0xffffffff){
+
+    uint32_t word = *(uint32_t *)iter;
+    uint32_t head = FSM_md_pkt_get_head (iter);
+    if ( head == FSM_MD_HEAD_CO ){
+      // md is written completely
+      iter += FSM_metadata_get_size (iter);
+    }
+    else if (head == FSM_MD_HEAD_INCO){
+      // md is  written incompletely
+      while (*(uint32_t *)iter != 0xffffffff){
+        iter += 4;
+      }
+    }
+    else {
+      #ifdef DEBUG
+        printf( __usart1_print, "in FSM_get_md_end_add function, iter is not "
+            "0xffffffff or FSM_MD_HEAD_INCO or FSM_MD_HEAD_CO\n\n");
+        printf (__usart1_print, "instead it is %x\n\r", *(uint32_t *)iter);
+        printf (__usart1_print, "value of iter is, %x\n\r", iter);
+        // hang 
+        while (1);
+      #endif 
+    }
+  }
+  return iter;
+
+}
+// sector is the starting address of the log
+// assuming the log is continuous and does not have gc sector in the range  
+void *FSM_get_log_end_add (uint8_t st_sector, uint8_t en_sector){
+  
+  void *iter = NULL; /* todo */
+
+  return iter;
+}

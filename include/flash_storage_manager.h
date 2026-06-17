@@ -15,12 +15,13 @@
 #define FSM_PACKET_DESCRIPTOR_SIZE_MSK      ((1<<20) -1)  // 19 ones
 #define FSM_PACKET_DESCRIPTOR_VALID_MSK     (1<<20)
 #define FSM_PACKET_DESCRIPTOR_NREMOVED_MSK  (1<<21)
-#define FSM_PACKET_DESCRIPTOR_HEAD_MSK      (~0U<<21)
+
+// same for md and packet
+#define FSM_MD_PKT_DESCRIPTOR_HEAD_MSK      (~0U<<21)
 
 // metadata
 #define FSM_METADATA_DESCRIPTOR_SIZE_MSK    ((1<<20) -1)  // 19 onesfsm.
 #define FSM_METADATA_DESCRIPTOR_VALID_MSK   (1<<20)
-#define FSM_METADATA_DESCRIPTOR_HEAD_MSK    (~0U<<21)
 
 // general
 // if the first address of any sector is 0xffffffff, then it is the GC sector
@@ -40,6 +41,11 @@
 
 
 typedef struct __FSM_addresses_t {
+  void *gc_end_add;
+  void *gc_sector_add;
+  void *log_end_add;
+  void *md_end_add;
+  void *md_sector_add;
   // may need more !!!
 
 }FSM_addresses_t;
@@ -65,7 +71,10 @@ typedef struct __FSM_record_metadata_t {
     sizeof (FSM_Packet_t) == 8Byte
 */
 
+// note ... size of packet and md head must be the same....
+
 // packet = packet_header + data
+
 typedef struct __FSM_Packet_header_t {
 
     uint32_t packet_descriptor;
