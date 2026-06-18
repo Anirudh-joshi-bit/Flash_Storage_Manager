@@ -8,8 +8,17 @@
               FSM_MetaData_header_t *metadata_in_flash,
               FSM_addresses_t* addresses);
     ```
-    - init the state of the flash_storage_manager
-    - 
+- init the state of the flash_storage_manager
+
+1. `FSM_get_log_end`
+```c
+void *FSM_get_log_end_add (uint8_t st_sector, 
+            uint8_t en_sector){
+```
+
+- get the log end 
+- called by `fsm_init` function
+
 
 
 
