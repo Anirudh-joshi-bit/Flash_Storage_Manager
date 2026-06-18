@@ -19,7 +19,11 @@ void *FSM_get_log_end_add (uint8_t st_sector,
 - get the log end 
 - called by `fsm_init` function
 
+1. `find_last_metadata_in_gc`
+```c
+    FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add);
+```
 
-
-
+- this function finds latest metadata in the gc
+- this is used in fsm_init if there is no complete metadata  present in the metadata sector
 

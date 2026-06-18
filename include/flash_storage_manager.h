@@ -40,12 +40,13 @@
 
 
 
+// change addresses only after write / erase 
 typedef struct __FSM_addresses_t {
   void *gc_end_add;
-  void *gc_sector_add;
+  void *gc_sector_add;        // for now -> this is constant
   void *log_end_add;
   void *md_end_add;
-  void *md_sector_add;
+  void *md_sector_add;        // for now -> this is constant
   // may need more !!!
 
 }FSM_addresses_t;
@@ -157,7 +158,7 @@ void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key,
 int8_t FSM_write (void *buffer, uint16_t size, bool continuity);
 bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size);
 bool FSM_flash_write (FSM_write_buffer_t* fsm_wb,  uint32_t *address, 
-                            FSM_Sector_t flash_sectors[8]);
+                            const FSM_Sector_t flash_sectors[8]);
 void FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) ;
 void metadata_header_init(FSM_MetaData_header_t *mdb, 
                       uint32_t metadata_size) ;
