@@ -1,7 +1,6 @@
 #include "flash.h"
 #include "commons.h"
 #include "stm32f401xe.h"
-#include "usart.h"
 
 
 

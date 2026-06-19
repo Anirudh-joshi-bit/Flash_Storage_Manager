@@ -40,10 +40,12 @@ FSM_MetaData_header_t *fsm_flash_metadata;         // fill this from flash
 // stores the address of most recent valid  metadata  
 // that is present in the flash
 
-// fsm addresses  =>
 // init in fsm init function
 FSM_addresses_t fsm_addresses;
 
+FSM_record_metadata_t last_packet_arr [MAX_RECORD_COUNT *
+                                  sizeof (FSM_record_metadata_t)];
+uint32_t number_record = 0;     // number of record
 
 int main(void) {
 
@@ -72,8 +74,10 @@ int main(void) {
 
   // fsm_init
   if (FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
-        fsm_flash_metadata, &fsm_addresses)) {
-    printf (__usart1_print,"error in FSM_init");
+        fsm_flash_metadata, &fsm_addresses, last_packet_arr, 
+        &number_record)) 
+  {
+    printf (__usart1_print,"[ERROR] FSM_init execution failed");
     hang ();
   }
 
