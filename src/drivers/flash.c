@@ -1,6 +1,7 @@
 #include "flash.h"
 #include "commons.h"
 #include "stm32f401xe.h"
+#include "DEBUG.h"
 
 
 
@@ -21,6 +22,20 @@ void flash_init (void){
 
   NVIC_EnableIRQ (FLASH_IRQn);
 }
+
+void flash_clear_sr (){
+    FLASH->SR |= FLASH_SR_EOP|
+                 FLASH_SR_OPERR |  
+                 FLASH_SR_WRPERR | 
+                 FLASH_SR_PGAERR | 
+                 FLASH_SR_PGPERR | 
+                 FLASH_SR_PGSERR;  
+}
+
+void flash_lock () {
+    FLASH-> CR |= FLASH_CR_LOCK;
+}
+
 
 void *flash_get_sector_address (uint32_t sector_number){
   switch (sector_number){

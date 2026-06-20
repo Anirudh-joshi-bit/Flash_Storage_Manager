@@ -1,6 +1,7 @@
 #include "commons.h"
 #include <stdint.h>
 #include <stdlib.h>
+#include "DEBUG.h"
 
 /*linker script symbols*/
 extern uint32_t _sdata;

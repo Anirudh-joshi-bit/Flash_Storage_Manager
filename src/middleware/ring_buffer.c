@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "ring_buff.h"
+#include "DEBUG.h"
 
 void Ring_buff_init(volatile Ring_buff_t *rb) {
   rb->rear = 0;

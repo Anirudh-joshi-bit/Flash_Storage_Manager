@@ -1,4 +1,5 @@
 #include "flash_storage_manager.h"
+#include "DEBUG.h"
 
 // cpoying the contenet of write buffer to flash !!!!
 bool FSM_flash_write(FSM_write_buffer_t *fsm_wb, uint32_t *address,

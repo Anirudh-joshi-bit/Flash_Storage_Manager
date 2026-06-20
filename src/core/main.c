@@ -3,11 +3,7 @@
 #include "flash_storage_manager.h"
 #include "ring_buff.h"
 #include "usart.h"
-
-
-// debug mode
-#define DEBUG
-
+#include "DEBUG.h"
 
 
 uint8_t buff[RING_BUFF_SIZE];
@@ -47,11 +43,20 @@ FSM_record_metadata_t last_packet_arr [MAX_RECORD_COUNT *
                                   sizeof (FSM_record_metadata_t)];
 uint32_t number_record = 0;     // number of record
 
+
 int main(void) {
 
   // System init;
   __usart1_init();
   flash_init ();
+ 
+
+
+  DEBUG_test (); // for now .. test wil be conducted on getter and setter
+
+
+
+
   __usart1_print("hii there", 10);
 
   // fsm init
@@ -80,8 +85,13 @@ int main(void) {
     printf (__usart1_print,"[ERROR] FSM_init execution failed");
     hang ();
   }
+ 
 
+  // hang here
+  
+  hang ();
 
+  
   // fsm make requests
   // at this poiint, usart 2 and usart 6 are not working properly i dont know
   // why make request only on usrt 1 for now

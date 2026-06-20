@@ -1,5 +1,6 @@
 #include "defines.h"
 #include "flash_storage_manager.h"
+#include "DEBUG.h"
 
 int8_t __fsm_write_to_write_buffer(FSM_Packet_header_t *pkt){
 

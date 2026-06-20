@@ -37,7 +37,7 @@ OPENOCD = openocd -f interface/stlink.cfg -f target/stm32f4x.cfg
 
 default : all
 
-all : build Makefile $(shell find include -name "*.h") $(ELF) $(BIN)
+all : Makefile build $(shell find include -name "*.h") $(ELF) $(BIN)
 
 build :
 	mkdir -p $(BUILD)/$(MIDDLEWARE) $(BUILD)/$(DRIVER) $(BUILD)/$(CORE) \

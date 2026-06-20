@@ -1,5 +1,4 @@
 #pragma once
-#include "stm32f401xe.h"
 #include <stdint.h>
 
 
@@ -30,4 +29,5 @@ uint32_t flash_erase(void *address);
 uint32_t flash_get_sector (void  *address);
 void *flash_get_sector_address (uint32_t sector_number);
 uint32_t flash_get_sector_size (uint32_t sector_number);
-
+void flash_clear_sr ();
+void flash_lock () ;

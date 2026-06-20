@@ -1,6 +1,7 @@
-#include "commons.h"
+#include "stm32f401xe.h"
 #include "ring_buff.h"
 #include "usart.h"
+#include "DEBUG.h"
 
 
 #define U1_TX 9   // PA
@@ -99,6 +100,27 @@ void __usart6_init (void){
 
 }
 
+bool __int_usart1_is_data_recieved (void){
+  return USART1->SR & USART_SR_RXNE_Msk;
+}
+bool __int_usart2_is_data_recieved (void){
+  return USART2->SR & USART_SR_RXNE_Msk;
+}
+bool __int_usart6_is_data_recieved (void){
+  return USART6->SR & USART_SR_RXNE_Msk;
+}
+
+
+uint8_t __usart1_get_data (void){
+  return USART1 -> DR;
+}
+uint8_t __usart2_get_data (void){
+  return USART2 -> DR;
+}
+uint8_t __usart6_get_data (void){
+  return USART6 -> DR;
+}
+
 void __usart1_print(const char *msg, uint32_t size) {
 
   int i = 0;
@@ -136,13 +158,16 @@ void __usart6_print(const char *msg, uint32_t size) {
 }
 void __usart1_scan (volatile Ring_buff_t *rb){ 
     while (!(USART1->SR & USART_SR_RXNE));
-    Ring_buff_write (rb, (uint8_t *)(USART1->DR), 1);
+    uint8_t data = USART1-> DR;
+    Ring_buff_write (rb, &data, 1);
 }
 void __usart2_scan (volatile Ring_buff_t *rb){ 
     while (!(USART2->SR & USART_SR_RXNE));
-    Ring_buff_write (rb, (uint8_t *)(USART2->DR), 1);
+    uint8_t data = USART2-> DR;
+    Ring_buff_write (rb, &data, 1);
 }
 void __usart6_scan (volatile Ring_buff_t *rb){ 
     while (!(USART6->SR & USART_SR_RXNE));
-    Ring_buff_write (rb, (uint8_t *)(USART6->DR), 1);
+    uint8_t data = USART6-> DR;
+    Ring_buff_write (rb, &data, 1);
 }

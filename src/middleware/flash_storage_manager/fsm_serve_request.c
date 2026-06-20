@@ -1,5 +1,6 @@
 #include "ring_buff.h"
 #include <flash_storage_manager.h>
+#include "DEBUG.h"
 
 #define FSM_PACKET_DATA_SIZE MAX_PACKET_SIZE-sizeof (FSM_Packet_header_t)
 

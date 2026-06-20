@@ -157,8 +157,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               FSM_record_metadata_t *last_packet_arr,
               uint32_t *number_record);     // stores the num of record) 
                 
-int8_t sector_init (FSM_Sector_t *sector, void *address);
-int8_t record_metadata_init (FSM_record_metadata_t *rec_metadata, 
+bool sector_init (FSM_Sector_t *sector, void *address);
+bool record_metadata_init (FSM_record_metadata_t *rec_metadata, 
                             uint32_t key, void *addr);
 void FSM_record_request_init (FSM_record_request_t *rr, 
           volatile Ring_buff_t *rb, queue_t *q);
@@ -170,8 +170,8 @@ void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key,
 bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size);
 bool FSM_flash_write (FSM_write_buffer_t* fsm_wb,  uint32_t *address, 
                            FSM_Sector_t flash_sectors[8]);
-void FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) ;
-void metadata_header_init(FSM_MetaData_header_t *mdb, 
+bool FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) ;
+bool metadata_header_init(FSM_MetaData_header_t *mdb, 
                       uint32_t metadata_size) ;
 
 

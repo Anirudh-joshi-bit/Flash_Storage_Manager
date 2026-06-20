@@ -1,4 +1,5 @@
 #include "flash_storage_manager.h"
+#include "DEBUG.h"
 
 // to write packet and data into the write buffer, we need to have packet and
 // ring buffer where the data lives !!!
