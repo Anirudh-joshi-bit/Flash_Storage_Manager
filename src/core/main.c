@@ -1,9 +1,11 @@
 #include "commons.h"
 #include "defines.h"
+#include "flash.h"
 #include "flash_storage_manager.h"
 #include "ring_buff.h"
 #include "usart.h"
 #include "DEBUG.h"
+#include "stm32f401xe.h"
 
 
 uint8_t buff[RING_BUFF_SIZE];
@@ -48,18 +50,30 @@ int main(void) {
 
   // System init;
   __usart1_init();
-  flash_init ();
- 
+  // __usart2_init();
+  // __usart6_init();
 
+  flash_init ();
+
+/*
+  // only for the first time 
+  // erase sector from 1 - 8 
+
+
+  for (int i=1; i<8; i++){
+    void * sector  = flash_get_sector_address(i);
+    flash_erase(sector);
+  }
+   printf(__usart1_print, "done erasign the flash \n\r");
+
+  hang ();
+*/
 
   DEBUG_test (); // for now .. test wil be conducted on getter and setter
 
 
+  // __usart1_print("hii there", 10);
 
-
-  __usart1_print("hii there", 10);
-
-  // fsm init
   // ring buffers init ->
   Ring_buff_init(&usart1_ring_buffer);
   Ring_buff_init(&usart2_ring_buffer);
@@ -85,7 +99,8 @@ int main(void) {
     printf (__usart1_print,"[ERROR] FSM_init execution failed");
     hang ();
   }
- 
+
+  DEBUG_printf (__usart1_print,"[atatus] FSM_init returns successfully\n\r");
 
   // hang here
   
@@ -96,6 +111,10 @@ int main(void) {
   // at this poiint, usart 2 and usart 6 are not working properly i dont know
   // why make request only on usrt 1 for now
   /*********************** start request for usart 1 *************************/
+
+  
+  /* todo -> map string(key) to numebr / index */
+
 
   // there are 5 requests in the request queue
   FSM_request_pair_t usart1_r1;

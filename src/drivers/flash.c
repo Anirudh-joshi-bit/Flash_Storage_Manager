@@ -19,6 +19,8 @@ void flash_init (void){
 
   FLASH-> CR |= FLASH_CR_EOPIE;         // enable eop interrupt
   FLASH-> CR |= FLASH_CR_ERRIE;         // enable err interrupt
+  
+  FLASH-> CR |= FLASH_CR_LOCK;
 
   NVIC_EnableIRQ (FLASH_IRQn);
 }
@@ -40,60 +42,60 @@ void flash_lock () {
 void *flash_get_sector_address (uint32_t sector_number){
   switch (sector_number){
     case 0:
-      return (uint32_t *)FLASH_SECTOR0_Addr;
+      return (void *)FLASH_SECTOR0_Addr;
     break;
     case 1:
-      return (uint32_t *)FLASH_SECTOR1_Addr;
+      return (void *)FLASH_SECTOR1_Addr;
     break;
     case 2:
-      return (uint32_t *)FLASH_SECTOR2_Addr;
+      return (void *)FLASH_SECTOR2_Addr;
     break;
     case 3:
-      return (uint32_t *)FLASH_SECTOR3_Addr;
+      return (void *)FLASH_SECTOR3_Addr;
     break;
     case 4:
-      return (uint32_t *)FLASH_SECTOR4_Addr;
+      return (void *)FLASH_SECTOR4_Addr;
     break;
     case 5:
-      return (uint32_t *)FLASH_SECTOR5_Addr;
+      return (void *)FLASH_SECTOR5_Addr;
     break;
     case 6:
-      return (uint32_t *)FLASH_SECTOR6_Addr;
+      return (void *)FLASH_SECTOR6_Addr;
     break;
     case 7:
-      return (uint32_t *)FLASH_SECTOR7_Addr;
+      return (void *)FLASH_SECTOR7_Addr;
     break;
     default:
     break;
   }
   return NULL;
 }
-
+// returns size in bytes
 uint32_t flash_get_sector_size  (uint32_t sector_number){
   switch (sector_number){
     case 0:
-      return 16;
+      return 16 * 1024;
     break;
     case 1:
-      return 16;
+      return 16 * 1024;
     break;
     case 2:
-      return 16;
+      return 16 * 1024;
     break;
     case 3:
-      return 16;
+      return 16 * 1024;
     break;
     case 4:
-      return 64;
+      return 64 * 1024;
     break;
     case 5:
-      return 128;
+      return 128 * 1024;
     break;
     case 6:
-      return 128;
+      return 128 * 1024;
     break;
     case 7:
-      return 128;
+      return 128 * 1024;
     break;
     default:
     break;
