@@ -54,6 +54,7 @@ int main(void) {
   // __usart6_init();
 
   flash_init ();
+  flash_erase(flash_get_sector_address(1)) ;      // REMOVE this 
 
 /*
   // only for the first time 
@@ -64,7 +65,7 @@ int main(void) {
     void * sector  = flash_get_sector_address(i);
     flash_erase(sector);
   }
-   printf(__usart1_print, "done erasign the flash \n\r");
+   printf(__usart1_print, "done erasing the flash \n\r");
 
   hang ();
 */
@@ -92,7 +93,7 @@ int main(void) {
   FSM_record_request_init(&rr3, &usart6_ring_buffer, &usart6_request_q);
 
   // fsm_init
-  if (FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
+  if (!FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
         fsm_flash_metadata, &fsm_addresses, last_packet_arr, 
         &number_record)) 
   {
@@ -100,7 +101,7 @@ int main(void) {
     hang ();
   }
 
-  DEBUG_printf (__usart1_print,"[atatus] FSM_init returns successfully\n\r");
+  DEBUG_printf (__usart1_print,"[status] FSM_init returns successfully\n\r");
 
   // hang here
   
@@ -113,7 +114,7 @@ int main(void) {
   /*********************** start request for usart 1 *************************/
 
   
-  /* todo -> map string(key) to numebr / index */
+  /* TODO -> map string(key) to numebr / index */
 
 
   // there are 5 requests in the request queue

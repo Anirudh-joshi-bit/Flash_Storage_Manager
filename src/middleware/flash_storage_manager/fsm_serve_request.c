@@ -9,12 +9,12 @@ extern FSM_write_buffer_t fsm_wb;
 bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size){
 
   for (uint32_t i=0; i<size; i++){
-    // todo
+    // TODO
     FSM_record_request_t *rr = &rr_array[i];
     if (Ring_buff_size(rr->rb) >= FSM_PACKET_DATA_SIZE){
       uint32_t data_size = FSM_PACKET_DATA_SIZE;
 
-      // todo
+      // TODO
       // if (rr->q->front)
       //
       // uint8_t data_buffer[FSM_PACKET_DATA_SIZE]

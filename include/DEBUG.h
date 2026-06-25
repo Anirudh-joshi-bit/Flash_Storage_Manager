@@ -9,8 +9,10 @@
   #define DEBUG_assert(expr) \
     ((expr) ? 0 : __DEBUG_assert("[ASSERTION FAILED] " #expr, __FILE__, __LINE__))
 
+
 #else 
   #define  DEBUG_printf(fun, str, ...)
+  #define DEBUG_assert(expr)
 #endif
 
 

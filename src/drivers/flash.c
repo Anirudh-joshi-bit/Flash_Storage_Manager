@@ -104,6 +104,8 @@ uint32_t flash_get_sector_size  (uint32_t sector_number){
 }
 
 uint32_t flash_get_sector (void *address){
+  if (address < (void *)0x08000000 || address >= (void *)0x08080000) 
+    return -1;
 
   if (address >= (void *) 0x08060000 && address < (void *)0x08080000)
     return 7;
@@ -151,7 +153,7 @@ uint32_t flash_erase(void *address) {
 }
 
 
-void flash_write(void *buff, uint32_t buff_size, void *address) {
+void flash_write(uint32_t *buff, uint32_t buff_size, void *address) {
 
   while (flash_state != FLASH_STATE_IDLE);
 

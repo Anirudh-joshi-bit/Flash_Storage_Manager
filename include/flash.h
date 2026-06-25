@@ -24,7 +24,7 @@ extern volatile uint8_t flash_state;
 
 
 void flash_init (void);
-void flash_write(void *buff, uint32_t size, void *address);
+void flash_write(uint32_t *buff, uint32_t size, void *address); // accepts an array of uint32_t
 uint32_t flash_erase(void *address);
 uint32_t flash_get_sector (void  *address);
 void *flash_get_sector_address (uint32_t sector_number);

@@ -7,14 +7,18 @@
 #include "DEBUG.h"
 
 // functions declaration
+bool FSM_copy_packet_to_log (void *src, void *dest, 
+        FSM_addresses_t *addresses);    /* TODO */
+bool FSM_copy_packet_to_log_helper  (void *src, void *dest);
+
 FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add);
-bool FSM_copy_metadata_to_md_sector_helper (void *dest, void *src);
 void *FSM_get_gc_end_add (uint8_t sector);
 void *FSM_get_md_end_add (uint8_t sector,
               FSM_MetaData_header_t* latest_metadata);
 void *FSM_get_log_end_add (uint8_t st_sector, uint8_t en_sector);
 bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
                                 FSM_addresses_t* addresses);
+bool FSM_copy_metadata_to_md_sector_helper (void *dest, void *src);
 
 bool FSM_make_last_packet_arr (FSM_record_metadata_t* arr, 
                                 FSM_addresses_t *add, void *metadata);
@@ -260,22 +264,23 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   FSM_MetaData_header_t* latest_metadata = NULL;
 
 
-    // init the addresses
-    addresses -> gc_sector_add = flash_get_sector_address(7);
-    // first word of gc if 0xffffffff
-    addresses -> gc_end_add = FSM_get_gc_end_add(7);
+  // init the addresses
+  addresses -> gc_sector_add = flash_get_sector_address(7);
+  // first word of gc if 0xffffffff
+  addresses -> gc_end_add = FSM_get_gc_end_add(7);
 
-    if (addresses-> gc_end_add >= flash_get_sector_address(7) +
-            flash_get_sector_size(7)){
+  if (addresses-> gc_end_add >= flash_get_sector_address(7) +
+          flash_get_sector_size(7)){
 
-      DEBUG_printf (__usart1_print, "in FSM_init function, gc_end is "
-            "exceeding the 7th sector boundary \n\r");
-      flash_erase ((void *)addresses->gc_sector_add);
-    }
-    // sector 1 is for metadata
-    addresses -> md_sector_add = flash_get_sector_address(1);
-    addresses -> md_end_add = FSM_get_md_end_add (1, latest_metadata);
-    addresses -> log_end_add = FSM_get_log_end_add (2, 6);
+    DEBUG_printf (__usart1_print, "in FSM_init function, gc_end is "
+          "exceeding the 7th sector boundary \n\r");
+    flash_erase ((void *)addresses->gc_sector_add);
+    addresses -> gc_end_add = addresses-> gc_sector_add + 4;
+  }
+  // sector 1 is for metadata
+  addresses -> md_sector_add = flash_get_sector_address(1);
+  addresses -> md_end_add = FSM_get_md_end_add (1, latest_metadata);
+  addresses -> log_end_add = FSM_get_log_end_add (2, 6);
 
 
   // populate md_ram and md_flash
@@ -286,8 +291,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     if (!latest_metadata){
       metadata_header_init(metadata_in_ram,
             sizeof (FSM_MetaData_header_t)); // init metadata in ram
-      flash_write (metadata_in_ram, sizeof(FSM_MetaData_header_t),
-              addresses -> md_end_add);
+    
+      FSM_copy_metadata_to_md_sector(metadata_in_ram, addresses->md_end_add, addresses);
 
     // #ifdef DEBUG
     // printf (__usart1_print, "[DEBUG] inside function FSM_ini, latest"
@@ -319,7 +324,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   }
 
   // make the array ...... from flssh_metadata
-  /*todo*/
+  /*TODO*/
     /*
      * 1. read metadata and get teh record's first packet address
      * 2. for each record, follow the link and get to the last packet for
@@ -383,28 +388,30 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
 
 // check !!!
 FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add){
-  flash_get_sector (gc_sector_add);
-  uint32_t *gc_end_add = gc_sector_add +
+  //flahshh_get_sector (gc_sector_add);
+  void *gc_end_add = gc_sector_add +
                   flash_get_sector_size(flash_get_sector (gc_sector_add));
 
-  uint32_t *gc_iter = ++gc_sector_add; // assumption 0
+  void *gc_iter = gc_sector_add + 4;
   FSM_MetaData_header_t* last_metadata = NULL;
 
   while (gc_iter < gc_end_add){
-    if ((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
+    if ((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
       // this is a metadata
       last_metadata = (FSM_MetaData_header_t *)gc_iter;
       uint32_t md_size =
                 FSM_metadata_get_size ((FSM_MetaData_header_t*) gc_iter);
-      gc_iter += md_size/4;
+      gc_iter += md_size;
     }else
-    if (((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) ||
-       ((*gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
+    if (((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) ||
+       ((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
       // this is a packet
       uint32_t pkt_size =
                 FSM_packet_get_size ((FSM_Packet_header_t*) gc_iter);
-      gc_iter += pkt_size/4;
+      gc_iter += pkt_size;
     }
+    else 
+      return last_metadata;
   }
   return last_metadata;
 }
@@ -419,27 +426,20 @@ FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add){
 //  0. write to flash
 //  1. possibly read flash
 //  2. may erase metadata sector
-//  3. may change the content og addresses
+//  3. may change the content of addresses
 bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
                                 FSM_addresses_t* addresses){
 
-// debug mode  => write all the values
-
   uint32_t md_size = FSM_metadata_get_size ((FSM_MetaData_header_t*)src);
-  uint32_t metadata_sector = flash_get_sector(src);
+  uint32_t metadata_sector = flash_get_sector(dest);
   void *md_sector_address =  flash_get_sector_address (metadata_sector);
   void *md_sector_end_address = md_sector_address +
                 flash_get_sector_size(flash_get_sector (md_sector_address));
 
   if (dest + md_size >= md_sector_end_address){
-    // #ifdef DEBUG
-    // printf (__usart1_print, "[DEBUG] FSM_copy_metadata_to_md_sector -> \
-    //     no space for writing md in src ... erasing md sector");
-    // #endif
 
     DEBUG_printf (__usart1_print, "FSM_copy_metadata_to_md_sector -> \
         no space for writing md in src ... erasing md sector");
-
 
     // 1. src -> gc_end_address -> possible -> write
     //                               else -> erase gc_sector and write
@@ -454,26 +454,28 @@ bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
     if (gc_remaining_size <= md_size){
       // erase the gc_sector firsta
       flash_erase ((void *)addresses-> gc_sector_add);
-      addresses -> gc_end_add = addresses -> gc_sector_add;
+      addresses -> gc_end_add = addresses -> gc_sector_add + 4;
     }
     FSM_copy_metadata_to_md_sector_helper (src, addresses->gc_end_add);
+    void *gc_end_prev = addresses -> gc_end_add;
+    // update gc_end_add , md_end_add
+    addresses-> gc_end_add += md_size;
 
     // erase md_ector
     flash_erase ((void *)md_sector_address);
+    addresses -> md_end_add = addresses-> md_sector_add;
 
     // recursion
-    FSM_copy_metadata_to_md_sector (addresses->gc_end_add, dest, addresses);
-
-    // update gc_end_add , md_end_add
-    addresses-> gc_end_add += md_size;
-    addresses-> md_end_add += md_size;
-
+    FSM_copy_metadata_to_md_sector (gc_end_prev, addresses-> md_end_add, addresses);
+    
+    return true;
+ 
   }
-
-  FSM_copy_metadata_to_md_sector_helper (src, dest);
-
-  addresses-> md_end_add += md_size;
-    return 1;
+  else {
+    FSM_copy_metadata_to_md_sector_helper (src, dest);
+    addresses-> md_end_add += md_size;
+  }
+    return true;
 }
 
 /*
@@ -486,10 +488,19 @@ bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
  * */
 
 bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
+  if (src < (void *)FLASH_ST_ADDRESS || src >= (void *)FLASH_END_ADDRESS && src < (void *)RAM_ST_ADDRESS || src >= (void *)RAM_END_ADDRESS) {
+
+  DEBUG_printf (__usart1_print, "in function FSM_copy_metadata_to_md_sector_helper, src is neither in flash nor in ram address range");
+
+  DEBUG_assert(src < (void *)FLASH_ST_ADDRESS || src >= (void *)FLASH_END_ADDRESS && src < (void *)RAM_ST_ADDRESS || src >= (void *)RAM_END_ADDRESS);
+  }
+  
+#ifdef DEBUG
+  if (*(uint32_t *)dest != 0xffffffff) while (1);
+#endif
 
   uint32_t md_size = FSM_metadata_get_size ((FSM_MetaData_header_t*)src);
-  uint32_t metadata_descriptor = *(uint32_t *)dest;
-  void *iter = src;
+  uint32_t metadata_descriptor = *(uint32_t *)src;
 
  // #ifdef DEBUG
   if ((metadata_descriptor & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) !=
@@ -503,72 +514,47 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   metadata_descriptor &= ~FSM_MD_PKT_DESCRIPTOR_HEAD_MSK; // clear the head
   metadata_descriptor |= FSM_MD_HEAD_INCO; // set incomplete bits
 
-
-  //#ifdef DEBUG
-    if (*(uint32_t *)dest != 0xffffffff){
-      printf (__usart1_print, "[DEBUG] error in "
-          "FSM_copy_metadata_to_md_sector, "
-          "trying to write to an unerased address in flash\n\r");
-    }
-  //#endif
-
-    // assuming metadat header is 4Bytes
-    // copy metadata header
-    //#ifdef DEBUG 
-    if (sizeof (FSM_MetaData_header_t) != 4){
-      DEBUG_printf (__usart1_print,"in function "  
-          "FSM_copy_metadata_to_md_sector_helper, "
-          "size of metadata_header_t is not 4, hence add a copy function "
-          "to copy the metadata header to flash\n\r");
-    }
-    //#endif
-  *(uint32_t *)(iter) = metadata_descriptor;
-  iter += 4;
-  dest += 4;
-
-  #ifdef DEBUG
-    while (iter != (src + md_size)){
-  #endif
-
-  #ifndef DEBUG
-  while (iter < (src + md_size) ){
-  #endif
-
-  //#ifdef DEBUG
-    if (*(uint32_t *)dest != 0xffffffff){
-      DEBUG_printf (__usart1_print, "error in FSM_copy_metadata_to_md_sector,\
-          trying to write to an unerased address in flash\n\r");
-    }
-  //#endif
-
-    // if word writable
-    if ((src+md_size) - iter >= 4){
-      *(uint32_t *) dest = *(uint32_t *) iter;
-      iter += 4;
-      dest += 4;
-    }
-    else {
-      // assuming littleendian
-      // make a packet and write it to the flash
-      uint32_t word = 0xffffffff;
-      uint32_t word_data = *(uint32_t *)(iter);
-      // clear the most significant byte
-      uint32_t remaining = (src+md_size) - iter;
-
-      // check
-      word_data |= word << (4-remaining) * 4;
-
-      *(uint32_t *) dest = word_data;
-      iter += 4;
-      dest += 4;
-    }
+  // assuming metadata header is 4Bytes
+  // copy metadata header
+  if (sizeof (FSM_MetaData_header_t) != 4){
+    DEBUG_printf (__usart1_print,"in function "  
+        "FSM_copy_metadata_to_md_sector_helper, "
+        "size of metadata_header_t is not 4, hence add a copy function "
+        "to copy the metadata header to flash\n\r");
   }
+   
+  *(uint32_t *)(src) = metadata_descriptor; 
+  // iter += 4;
+  // dest += 4;
+  
 
-  // complete the transaction
+  // dont need a while loop
+  
+  flash_write (src, md_size/4 *4, dest);
+  void *temp = md_size/4 *4 + src;
+
+  // assuming littleendian
+  // make a packet and write it to the flash
+  uint32_t word_data = *(uint32_t *)(temp);
+  // clear the most significant byte
+  uint32_t remaining = (src+md_size) - temp;
+
+  uint32_t word = 0xffffffff << (8*remaining);
+
+  // check
+  word_data |= word;
+
+  flash_write (&word_data, 1, dest+md_size/4 *4);
+
+  // complete the transaction 
+  // check
+  uint32_t complete_descriptor = 
+    (FSM_MD_HEAD_CO | ~(FSM_MD_PKT_DESCRIPTOR_HEAD_MSK)) &  metadata_descriptor ;
+
+  flash_write (&complete_descriptor, 1, dest);
 
   return 1;
 }
-
 
 /*
  * retutns gc_end_address
@@ -652,7 +638,7 @@ void *FSM_get_md_end_add (uint8_t sector,
       DEBUG_printf (__usart1_print, "value of iter is, %x\n\r", \
           iter);
       // hang
-      while (1);
+      DEBUG_assert (0);
     }
   }
   return iter;
@@ -727,4 +713,16 @@ void *skip_the_garbage (void *iter, void *end){
   }
   else 
     return iter;
+}
+
+
+
+bool FSM_copy_packet_to_log (void *src, void *dest, 
+        FSM_addresses_t *addresses){
+/* TODO */
+  return true;
+}
+bool FSM_copy_packet_to_log_helper  (void *src, void *dest){
+/* TODO */
+  return true;
 }

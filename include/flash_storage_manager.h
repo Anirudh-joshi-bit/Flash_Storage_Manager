@@ -42,6 +42,13 @@
 #define FLAGS_INIT_VALUE                    0x0fffffff
 #define FSM_MAX_RECORD_COUNT                100
 
+#define FLASH_ST_ADDRESS                    0x08000000
+#define FLASH_END_ADDRESS                   0x08080000
+#define RAM_ST_ADDRESS                      0x20000000
+#define RAM_END_ADDRESS                     0x20018000
+
+
+
 // change addresses only after write / erase 
 typedef struct __FSM_addresses_t {
   void *gc_end_add;
