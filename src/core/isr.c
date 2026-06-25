@@ -40,13 +40,15 @@ void FLASH_IRQHandler(void) {
 
   if (flash_state == FLASH_STATE_WRITE) {
     // flash is written
-    *isr_flash_write_address++ = isr_buffer[buffer_ind++];
-    if (buffer_ind == isr_flash_write_size) {
+    if (buffer_ind >= isr_flash_write_size) {
       // falsh write operation is done
 
       flash_clear_sr();
       flash_state = FLASH_STATE_IDLE;
       flash_lock();
+    }
+    else{
+      *isr_flash_write_address++ = isr_buffer[buffer_ind++];
     }
   } else if (flash_state == FLASH_STATE_ERASE) {
     // flash is erased

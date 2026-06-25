@@ -136,6 +136,7 @@ bool FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
   return true;
 }
 
+// always called for metadata in ram => complete
 bool metadata_header_init(FSM_MetaData_header_t *mdh, 
                                   uint32_t metadata_size) {
 
@@ -146,9 +147,10 @@ bool metadata_header_init(FSM_MetaData_header_t *mdh,
   
   mdh->metadata_descriptor = 0;
   mdh->metadata_descriptor |=
-      (FSM_MD_HEAD_INCO & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
+      (FSM_MD_HEAD_CO & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
       FSM_METADATA_DESCRIPTOR_VALID_MSK |
       (metadata_size & FSM_METADATA_DESCRIPTOR_SIZE_MSK);
+  return 1;
 }
 
 bool sector_init(FSM_Sector_t *sector, void *address) {
@@ -335,7 +337,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   //      FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t);
   
   // using ram metadata to make the lastpacket arr
-  if (FSM_metadata_get_size(metadata_in_ram) - sizeof (FSM_record_metadata_t)
+  if (FSM_metadata_get_size(metadata_in_ram) - sizeof (FSM_MetaData_header_t)
         >  FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t)) 
   {
     printf (__usart1_print, "[WARNING] there is too many records !!!\n\r");
@@ -366,9 +368,10 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   //                                 number_record);
   // #endif
 
-    DEBUG_printf (__usart1_print, "number of record = %d ",
-                                  number_record);
+    DEBUG_printf (__usart1_print, "number of record = %d \n\r",
+                                  *number_record);
 
+    if (!*number_record) return true;   // empty flash
 
   // read to get the last packet address 
   iter_last_packet_ar = last_packet_arr;
@@ -483,7 +486,7 @@ bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
  *  1. there is enough space to copy
  *  2. dest is in the flash range
  *
- * perpose -> run a while loop and copy the data from src to dest
+ * perpose -> copy the data from src to dest
  *
  * */
 
