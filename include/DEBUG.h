@@ -4,10 +4,10 @@
 
 #ifdef DEBUG
   #define DEBUG_printf(fun, str, ...) \
-    printf(fun, "[DEBUG] " str, ##__VA_ARGS__) 
+    printf(fun, "[DEBUG]    " str, ##__VA_ARGS__) 
 
   #define DEBUG_assert(expr) \
-    ((expr) ? 0 : __DEBUG_assert("[ASSERTION FAILED] " #expr, __FILE__, __LINE__))
+    ((expr) ? 0 : __DEBUG_assert("[ASSERTION FAILED]    " #expr, __FILE__, __LINE__))
 
 
 #else 

@@ -1,7 +1,7 @@
 #include "DEBUG.h"
 #include <stdint.h>
 #include <stdarg.h>
-#include "flash_storage_manager.h"
+
 
 void printf(void (*usartx_print) (const char*, uint32_t) ,
                   const char *msg, ...);

@@ -65,7 +65,7 @@ int main(void) {
     void * sector  = flash_get_sector_address(i);
     flash_erase(sector);
   }
-   printf(__usart1_print, "done erasing the flash \n\r");
+   printf(__usart1_print, "[MESSAGE]    done erasing the flash \n\r");
 
   hang ();
 */
@@ -97,11 +97,19 @@ int main(void) {
         fsm_flash_metadata, &fsm_addresses, last_packet_arr, 
         &number_record)) 
   {
-    printf (__usart1_print,"[ERROR] FSM_init execution failed");
+    printf (__usart1_print,"[ERROR]   FSM_init execution failed");
     hang ();
   }
 
-  DEBUG_printf (__usart1_print,"[status] FSM_init returns successfully\n\r");
+  // at the end of FSM_init function  
+  DEBUG_printf(__usart1_print, "\naddresses-> gc_end_add = %x\n\r"
+                              "addresses-> gc_sector_add = %x\n\r"
+                              "addresses-> log_end_add = %x\n\r"
+                              "addresses-> md_end_add = %x\n\r"
+                              "addresses-> md_sector_add = %x\n\n\r", 
+                              fsm_addresses . gc_end_add, fsm_addresses . gc_sector_add, fsm_addresses . log_end_add, fsm_addresses . md_end_add, fsm_addresses . md_sector_add);
+
+  DEBUG_printf (__usart1_print,"[status]    FSM_init returns successfully\n\r");
 
   // hang here
   
@@ -167,13 +175,8 @@ int main(void) {
 
   /*********************** post serving code *************************/
 
-  printf(__usart1_print, "give me some data");
+  hang () ;
 
-  while (Ring_buff_size(&usart1_ring_buffer) < 31)
-    ;
-
-  Ring_buff_read(&usart1_ring_buffer, buff, RING_BUFF_SIZE);
-  printf(__usart1_print, "read from ring buffer");
 
   while (1)
     ;

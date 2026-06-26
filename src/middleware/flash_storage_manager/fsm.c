@@ -1,4 +1,3 @@
-#include "defines.h"
 #include "flash.h" 
 #include "flash_storage_manager.h"
 #include "queue.h"
@@ -118,7 +117,7 @@ bool FSM_metadata_is_valid(FSM_MetaData_header_t *md_header) {
 bool FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
   
   if (data_size > MAX_PACKET_SIZE - sizeof (FSM_Packet_header_t)){
-    printf (__usart1_print, "[ERROR] in FSM_Packet_init function, data "
+    printf (__usart1_print, "[ERROR]    in FSM_Packet_init function, data "
                   "size is too big \n\r");
     return false;
   }
@@ -296,11 +295,6 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     
       FSM_copy_metadata_to_md_sector(metadata_in_ram, addresses->md_end_add, addresses);
 
-    // #ifdef DEBUG
-    // printf (__usart1_print, "[DEBUG] inside function FSM_ini, latest"
-    //     "metadata is NULL and there is no complete metadata is gc, value of"
-    //     "md_end_add = %x\n\r", addresses -> md_end_add);
-    // #endif
     
     DEBUG_printf(__usart1_print, "inside function FSM_ini, latest"
         "metadata is NULL and there is no complete metadata is gc, value of"
@@ -311,11 +305,6 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     }
     else {
       // a valid md found in gc sector
-      // #ifdef DEBUG
-      //   printf (__usart1_print, "[DEBUG] inside function FSM_ini, a valid"
-      //       " md found in the gc sector\n\r");
-      // #endif
-      
       DEBUG_printf (__usart1_print, "inside function FSM_ini, a valid"
             " md found in the gc sector\n\r");
 
@@ -340,8 +329,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   if (FSM_metadata_get_size(metadata_in_ram) - sizeof (FSM_MetaData_header_t)
         >  FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t)) 
   {
-    printf (__usart1_print, "[WARNING] there is too many records !!!\n\r");
-    printf (__usart1_print, "[TIP] increase the max record count \n\r");
+    printf (__usart1_print, "[WARNING]    there is too many records !!!\n\r");
+    printf (__usart1_print, "[TIP]    increase the max record count \n\r");
     return false;
   }
   
@@ -363,15 +352,10 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
 
   }
 
-  // #ifdef DEBUG
-  //     printf (__usart1_print, "[DEBUG] number of record = %d ",
-  //                                 number_record);
-  // #endif
+  DEBUG_printf (__usart1_print, "number of record = %d \n\r",
+                                *number_record);
 
-    DEBUG_printf (__usart1_print, "number of record = %d \n\r",
-                                  *number_record);
-
-    if (!*number_record) return true;   // empty flash
+  if (!*number_record) return true;   // empty flash
 
   // read to get the last packet address 
   iter_last_packet_ar = last_packet_arr;
@@ -385,6 +369,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
                   FSM_get_last_packet (iter_last_packet_ar -> packet_add);
     iter_last_packet_ar ++;
   }
+
 
   return true;
 }
@@ -662,10 +647,8 @@ void *FSM_get_log_end_add (uint8_t st_sector, uint8_t end_sector){
   while (iter < end_add){
     uint32_t word = *(uint32_t *) iter;
     if (word == 0xffffffff){
-      #ifdef DEBUG
-        printf (__usart1_print, "[DEBUG] in FSM_get_log_end_add, function,"
+        DEBUG_printf (__usart1_print, "in FSM_get_log_end_add, function,"
                   "at address %x, log end is found... see the hexdump\n\r", iter);
-      #endif
       return iter;
     }
     uint32_t head = FSM_md_pkt_get_head(iter);
@@ -693,7 +676,7 @@ FSM_Packet_header_t* FSM_get_last_packet
                 (FSM_Packet_header_t* start_packet)
 {
   if (!start_packet) {
-    printf (__usart1_print, "[ERROR] in function FSM_get_last_packet, "
+    printf (__usart1_print, "[ERROR]    in function FSM_get_last_packet, "
         "start packet is NULL");
   }
   FSM_Packet_header_t* iter = start_packet;
@@ -719,6 +702,18 @@ void *skip_the_garbage (void *iter, void *end){
 }
 
 
+/*
+ *  assumptions -> 
+ *  1. dest is always in flash (log)
+ *  2. packet in the src contains the flash address of next packet
+ *  
+ *  sideeffect ->
+ *  1. write to flash (log)
+ *  2. change addresses (log_end_add, gc_end_add (in case of gc), )
+ *
+ *
+ *
+ */
 
 bool FSM_copy_packet_to_log (void *src, void *dest, 
         FSM_addresses_t *addresses){

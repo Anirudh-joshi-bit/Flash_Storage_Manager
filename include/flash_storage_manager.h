@@ -41,6 +41,7 @@
 #define VALID_FLAG                          0xffffffff
 #define FLAGS_INIT_VALUE                    0x0fffffff
 #define FSM_MAX_RECORD_COUNT                100
+#define MAX_RECORD_COUNT                    100
 
 #define FLASH_ST_ADDRESS                    0x08000000
 #define FLASH_END_ADDRESS                   0x08080000
@@ -176,9 +177,13 @@ void FSM_request_pair_init (FSM_request_pair_t *rp, uint8_t *key,
 //int8_t FSM_write (void *buffer, uint16_t size, bool continuity);
 bool FSM_start_serving_request (FSM_record_request_t *rr_array, uint8_t size);
 bool FSM_flash_write (FSM_write_buffer_t* fsm_wb,  uint32_t *address, 
-                           FSM_Sector_t flash_sectors[8]);
+                           FSM_Sector_t flash_sectors[], uint32_t sector_num);
 bool FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) ;
 bool metadata_header_init(FSM_MetaData_header_t *mdb, 
                       uint32_t metadata_size) ;
+
+bool FSM_copy_packet_to_log (void *src, void *dest, 
+        FSM_addresses_t *addresses);    /* TODO */
+bool FSM_copy_packet_to_log_helper  (void *src, void *dest);
 
 

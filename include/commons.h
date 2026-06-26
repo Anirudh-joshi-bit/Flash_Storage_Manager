@@ -4,9 +4,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define MAX(a, b) (a) > (b) ? (a): (b)
-#define MIN(a, b) (a) < (b) ? (a): (b)
-
+#define MAX(a, b)           (a) > (b) ? (a): (b)
+#define MIN(a, b)           (a) < (b) ? (a): (b)
 
 uint32_t strlen(const char *msg);
 // pass the function pointer to printf
