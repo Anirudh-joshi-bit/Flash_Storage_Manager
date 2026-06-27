@@ -13,14 +13,8 @@ void __usart1_print(const char *msg, uint32_t size);
     printf (__usart1_print, "%s in %s at %d", msg, file, line_num);
   }
   
-  void DEBUG_test (void){
+  void __DEBUG_test (void){
      return ;
-  }
-
-#else 
-
-  void DEBUG_assert (bool val) {
-    return ;
   }
 
 #endif

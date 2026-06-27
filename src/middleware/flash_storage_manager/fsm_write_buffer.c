@@ -21,7 +21,7 @@ uint8_t FSM_write_buffer_write(FSM_write_buffer_t *fsm_wb,
   if (data_size + sizeof(FSM_Packet_header_t) >
       fsm_wb->size + fsm_wb->capacity) {
     // write to the flash
-    FSM_flash_write(fsm_wb, fsm_flash_write_end_address, flash_sectors);
+    FSM_flash_write(fsm_wb, fsm_flash_write_end_address, flash_sectors, 8);
   }
 
   // fsm_wb-> size is in bytes

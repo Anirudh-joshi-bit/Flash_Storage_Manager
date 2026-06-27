@@ -13,8 +13,9 @@
 #else 
   #define  DEBUG_printf(fun, str, ...)
   #define DEBUG_assert(expr)
+
 #endif
 
 
 void __DEBUG_assert (const char* expr, const char *file, uint32_t line);
-void DEBUG_test (void);
+void __DEBUG_test (void);

@@ -13,7 +13,7 @@ bool FSM_copy_packet_to_log_helper  (void *src, void *dest);
 FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add);
 void *FSM_get_gc_end_add (uint8_t sector);
 void *FSM_get_md_end_add (uint8_t sector,
-              FSM_MetaData_header_t* latest_metadata);
+              FSM_MetaData_header_t** latest_metadata);
 void *FSM_get_log_end_add (uint8_t st_sector, uint8_t en_sector);
 bool FSM_copy_metadata_to_md_sector (void *src,void *dest,
                                 FSM_addresses_t* addresses);
@@ -235,7 +235,7 @@ void FSM_request_pair_init(FSM_request_pair_t *rp, uint8_t *key,
 bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               uint8_t wb[FSM_WRITE_BUFFER_SIZE],
               FSM_MetaData_header_t *metadata_in_ram,
-              FSM_MetaData_header_t *metadata_in_flash,
+              FSM_MetaData_header_t **metadata_in_flash,
               FSM_addresses_t* addresses,
               FSM_record_metadata_t *last_packet_arr,
               uint32_t *number_record) {
@@ -280,21 +280,25 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   }
   // sector 1 is for metadata
   addresses -> md_sector_add = flash_get_sector_address(1);
-  addresses -> md_end_add = FSM_get_md_end_add (1, latest_metadata);
+  addresses -> md_end_add = FSM_get_md_end_add (1, &latest_metadata);
   addresses -> log_end_add = FSM_get_log_end_add (2, 6);
 
 
   // populate md_ram and md_flash
-  if (latest_metadata == NULL){
+  if (latest_metadata == NULL){     
+    // _______________________________________there is no metadata in md_sector 
     // there is no metadata | metadata is in the gc sector and power was
     // lost in prev reset before  completely writing the md to md sector
+    
+    //TODO check this function 
     latest_metadata = find_last_metadata_in_gc(addresses -> gc_sector_add);
     if (!latest_metadata){
+      // _______________________________________latest metadata is not in the gc sector
       metadata_header_init(metadata_in_ram,
             sizeof (FSM_MetaData_header_t)); // init metadata in ram
-    
-      FSM_copy_metadata_to_md_sector(metadata_in_ram, addresses->md_end_add, addresses);
 
+      *metadata_in_flash = addresses-> md_end_add; 
+      FSM_copy_metadata_to_md_sector(metadata_in_ram, addresses->md_end_add, addresses);
     
     DEBUG_printf(__usart1_print, "inside function FSM_ini, latest"
         "metadata is NULL and there is no complete metadata is gc, value of"
@@ -304,15 +308,43 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
                         sizeof (FSM_MetaData_header_t);
     }
     else {
+      // _______________________________________latest metadata is in the gc sector
+      // latest_metadata is a valid metadata but lies in the gc sector 
       // a valid md found in gc sector
+      
       DEBUG_printf (__usart1_print, "inside function FSM_ini, a valid"
             " md found in the gc sector\n\r");
+      
+      /*if metadata is found is the gc sector, and there is no valid metadata in 
+       * metadata sector, then erase the md_sector to save future gc operation
+       *  but this hurts the wearleveling for md sector
+       *  erase part can be removed
+       * */
+      
+// note   
+      flash_erase (addresses->md_sector_add);      // note... whenever erasing a sector -> increament the erase count for that sector
+      addresses -> md_end_add = addresses -> md_sector_add;
+//
 
+// note
+      *metadata_in_flash = addresses -> md_end_add;
       FSM_copy_metadata_to_md_sector (latest_metadata,
             addresses-> md_end_add, addresses);
-      addresses -> md_end_add += FSM_metadata_get_size(latest_metadata);
+      //addresses -> md_end_add += FSM_metadata_get_size(latest_metadata);
+      // metadta is copied from gc sector to md sector
+//
+     *metadata_in_ram =  **metadata_in_flash;
     }
   }
+  
+  else {
+    // there is a valid latest_metadata in md_sector
+    *metadata_in_flash = latest_metadata;
+    *metadata_in_ram = **metadata_in_flash;
+  }
+
+
+
 
   // make the array ...... from flssh_metadata
   /*TODO*/
@@ -593,7 +625,7 @@ void *FSM_get_gc_end_add (uint8_t sector){
 
 // returns the end free address of md_sector and populate latest_metadata
 void *FSM_get_md_end_add (uint8_t sector,
-        FSM_MetaData_header_t* latest_metadata){
+        FSM_MetaData_header_t** latest_metadata){
 
   void *iter = flash_get_sector_address(sector);
   void *sector_end = iter + flash_get_sector_size(sector);
@@ -604,8 +636,8 @@ void *FSM_get_md_end_add (uint8_t sector,
     uint32_t head = FSM_md_pkt_get_head (iter);
     if ( head == FSM_MD_HEAD_CO ){
       // md is written completely
+      *latest_metadata = (FSM_MetaData_header_t *)iter;
       iter += FSM_metadata_get_size (iter);
-      latest_metadata = iter;
     }
     else if (head == FSM_MD_HEAD_INCO){
       // md is written incompletely

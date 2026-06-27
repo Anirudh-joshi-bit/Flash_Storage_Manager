@@ -1,12 +1,11 @@
+#include "DEBUG.h"
 #include "commons.h"
 #include "defines.h"
 #include "flash.h"
 #include "flash_storage_manager.h"
 #include "ring_buff.h"
-#include "usart.h"
-#include "DEBUG.h"
 #include "stm32f401xe.h"
-
+#include "usart.h"
 
 uint8_t buff[RING_BUFF_SIZE];
 FSM_Sector_t flash_sectors[8];
@@ -33,18 +32,16 @@ FSM_write_buffer_t fsm_wb;
 FSM_record_request_t rr[3];
 
 // metadata ->
-FSM_MetaData_header_t fsm_ram_metadata;
-FSM_MetaData_header_t *fsm_flash_metadata;         // fill this from flash
-// stores the address of most recent valid  metadata  
-// that is present in the flash
+FSM_MetaData_header_t fsm_ram_metadata; // metadata
+FSM_record_metadata_t fsm_ram_metadata_body [FSM_MAX_RECORD_COUNT];
+FSM_MetaData_header_t *fsm_flash_metadata; // fill this from flash .....stores the address of the most recent valid  metadata (in md sector range)
 
 // init in fsm init function
 FSM_addresses_t fsm_addresses;
 
-FSM_record_metadata_t last_packet_arr [MAX_RECORD_COUNT *
-                                  sizeof (FSM_record_metadata_t)];
-uint32_t number_record = 0;     // number of record
-
+FSM_record_metadata_t
+    last_packet_arr[MAX_RECORD_COUNT * sizeof(FSM_record_metadata_t)];
+uint32_t number_record = 0; // number of record
 
 int main(void) {
 
@@ -53,25 +50,24 @@ int main(void) {
   // __usart2_init();
   // __usart6_init();
 
-  flash_init ();
-  flash_erase(flash_get_sector_address(1)) ;      // REMOVE this 
+  flash_init();
+  // flash_erase(flash_get_sector_address(1)) ;      // REMOVE this
 
-/*
-  // only for the first time 
-  // erase sector from 1 - 8 
+  /*
+    // only for the first time
+    // erase sector from 1 - 8
 
 
-  for (int i=1; i<8; i++){
-    void * sector  = flash_get_sector_address(i);
-    flash_erase(sector);
-  }
-   printf(__usart1_print, "[MESSAGE]    done erasing the flash \n\r");
+    for (int i=1; i<8; i++){
+      void * sector  = flash_get_sector_address(i);
+      flash_erase(sector);
+    }
+     printf(__usart1_print, "[MESSAGE]    done erasing the flash \n\r");
 
-  hang ();
-*/
+    hang ();
+  */
 
-  DEBUG_test (); // for now .. test wil be conducted on getter and setter
-
+  __DEBUG_test(); // for now .. test wil be conducted on getter and setter
 
   // __usart1_print("hii there", 10);
 
@@ -94,36 +90,35 @@ int main(void) {
 
   // fsm_init
   if (!FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
-        fsm_flash_metadata, &fsm_addresses, last_packet_arr, 
-        &number_record)) 
-  {
-    printf (__usart1_print,"[ERROR]   FSM_init execution failed");
-    hang ();
+                &fsm_flash_metadata, &fsm_addresses, last_packet_arr,
+                &number_record)) {
+    printf(__usart1_print, "[ERROR]   FSM_init execution failed");
+    hang();
   }
 
-  // at the end of FSM_init function  
-  DEBUG_printf(__usart1_print, "\naddresses-> gc_end_add = %x\n\r"
-                              "addresses-> gc_sector_add = %x\n\r"
-                              "addresses-> log_end_add = %x\n\r"
-                              "addresses-> md_end_add = %x\n\r"
-                              "addresses-> md_sector_add = %x\n\n\r", 
-                              fsm_addresses . gc_end_add, fsm_addresses . gc_sector_add, fsm_addresses . log_end_add, fsm_addresses . md_end_add, fsm_addresses . md_sector_add);
+  // at the end of FSM_init function
+  DEBUG_printf(__usart1_print,
+               "\naddresses-> gc_end_add = %x\n\r"
+               "addresses-> gc_sector_add = %x\n\r"
+               "addresses-> log_end_add = %x\n\r"
+               "addresses-> md_end_add = %x\n\r"
+               "addresses-> md_sector_add = %x\n\n\r",
+               fsm_addresses.gc_end_add, fsm_addresses.gc_sector_add,
+               fsm_addresses.log_end_add, fsm_addresses.md_end_add,
+               fsm_addresses.md_sector_add);
 
-  DEBUG_printf (__usart1_print,"[status]    FSM_init returns successfully\n\r");
+  DEBUG_printf(__usart1_print, "FSM_init returns successfully\n\r");
 
   // hang here
-  
-  hang ();
 
-  
+  hang();
+
   // fsm make requests
   // at this poiint, usart 2 and usart 6 are not working properly i dont know
   // why make request only on usrt 1 for now
   /*********************** start request for usart 1 *************************/
 
-  
   /* TODO -> map string(key) to numebr / index */
-
 
   // there are 5 requests in the request queue
   FSM_request_pair_t usart1_r1;
@@ -162,28 +157,23 @@ int main(void) {
   rr[1] = rr2;
   rr[2] = rr3;
 
-
-
   /***********************not for now****************************/
   // make it work for one source request  first
-  //FSM_start_serving_request(rr, 1);
+  // FSM_start_serving_request(rr, 1);
   /***********************not for now****************************/
-
-
 
   /*********************** end serving requests *************************/
 
   /*********************** post serving code *************************/
 
-  hang () ;
-
+  hang();
 
   while (1)
     ;
   return 0;
 }
 
-void hang (void){
-  while (1);
+void hang(void) {
+  while (1)
+    ;
 }
-
