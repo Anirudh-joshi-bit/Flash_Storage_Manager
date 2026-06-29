@@ -7,6 +7,7 @@
 #include "queue.h"
 #include "flash.h"
 #include "garbage_collector.h"
+#include "stm32f401xe.h"
 
 
 // defines
@@ -36,12 +37,14 @@
 #define FSM_MD_HEAD_CO                      0x07f<<21       // 00001111111
 
 #define FSM_WRITE_BUFFER_SIZE               10*1024
-#define MAX_PACKET_SIZE                     1024            // 1kB
+#define MAX_PACKET_SIZE                     1024      // 1kB, min = 1KB 
 #define MAX_FLASH_WRITE_BUFFER_SIZE         6*1024          // 6kB
 #define VALID_FLAG                          0xffffffff
 #define FLAGS_INIT_VALUE                    0x0fffffff
 #define FSM_MAX_RECORD_COUNT                100
 #define MAX_RECORD_COUNT                    100
+#define FSM_LOG_SIZE                        512-16-16-128
+#define FSM_SEQUENCE_TABLE_ARR_SIZE       FSM_LOG_SIZE/(MAX_PACKET_SIZE/1024)
 
 #define FLASH_ST_ADDRESS                    0x08000000
 #define FLASH_END_ADDRESS                   0x08080000
@@ -69,16 +72,20 @@ typedef struct __FSM_addresses_t {
     bit[21] - bit[31] = flag (to identify a packet in gc_sector)
 
     sizeof (FSM_Packet_t) == 8Byte
+
+    seq_info ->
+    bit[0] - bit[19] == offset
+    bit[20]          == valid
+    bit[21] - bit[32]== next packet seq number
+
 */
-
 // note ... size of packet and md head must be the same....
-
 // packet = packet_header + data
 
 typedef struct __FSM_Packet_header_t {
 
     uint32_t packet_descriptor;
-    struct __FSM_Packet_header_t *next_packet;
+    uint32_t seq_info;
     // then thers is the payload
 
 } FSM_Packet_header_t;
@@ -97,6 +104,18 @@ typedef struct __FSM_Packet_header_t {
 typedef struct __FSM_MetaData_header_t {
   uint32_t metadata_descriptor;
 } FSM_MetaData_header_t ;
+
+
+
+// each sequence number is mapped to the offset from 0x08000000
+// table [i] => 
+//  bit[0] - bit[19]    == offset from 0x08000000
+//  bit[20]             == occupied seq number
+// bit[21] - bit[31]    == seqnumebr
+//
+typedef struct __FSM__sequence_table_t {
+  uint32_t table [FSM_SEQUENCE_TABLE_ARR_SIZE]; 
+} FSM_sequence_table_t;
 
 
 typedef struct __FSM_Sector_t {
@@ -163,7 +182,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               FSM_MetaData_header_t **metadata_in_flash,
               FSM_addresses_t* addresses,
               FSM_record_metadata_t *last_packet_arr,
-              uint32_t *number_record);     // stores the num of record) 
+              uint32_t *number_record,     // stores the num of record) 
+              FSM_sequence_table_t*sequence_table);
                 
 bool sector_init (FSM_Sector_t *sector, void *address);
 bool record_metadata_init (FSM_record_metadata_t *rec_metadata, 
@@ -183,7 +203,7 @@ bool metadata_header_init(FSM_MetaData_header_t *mdb,
                       uint32_t metadata_size) ;
 
 bool FSM_copy_packet_to_log (void *src, void *dest, 
-        FSM_addresses_t *addresses);    /* TODO */
+        FSM_addresses_t *addresses, FSM_record_metadata_t *last_packet_arr);
 bool FSM_copy_packet_to_log_helper  (void *src, void *dest);
 
 

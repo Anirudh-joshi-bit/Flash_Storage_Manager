@@ -7,7 +7,7 @@
 
 // functions declaration
 bool FSM_copy_packet_to_log (void *src, void *dest, 
-        FSM_addresses_t *addresses);    /* TODO */
+        FSM_addresses_t *addresses, FSM_record_metadata_t *last_packet_arr);
 bool FSM_copy_packet_to_log_helper  (void *src, void *dest);
 
 FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add);
@@ -27,6 +27,13 @@ FSM_Packet_header_t* FSM_get_last_packet
 
 void *skip_the_garbage (void *iter, void *end);
 
+bool FSM_flash_write_wrapper (uint32_t *buff, uint32_t size, void *address);
+bool FSM_flash_erase_wrapper (void *address);
+
+bool execute_time_taking_tasks1 ();   // less time expensive, these function cannot use flash_write_wraper
+bool execute_time_taking_tasks2 ();   // more time expensive, these function cannot use flash_etase_wrapper
+
+bool FSM_sequence_table_fill (FSM_MetaData_header_t* metadata);
 
 
 // debug
@@ -114,7 +121,7 @@ bool FSM_metadata_is_valid(FSM_MetaData_header_t *md_header) {
 
 
 // init functins ->
-bool FSM_Packet_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
+bool FSM_Packet_header_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
   
   if (data_size > MAX_PACKET_SIZE - sizeof (FSM_Packet_header_t)){
     printf (__usart1_print, "[ERROR]    in FSM_Packet_init function, data "
@@ -150,6 +157,13 @@ bool metadata_header_init(FSM_MetaData_header_t *mdh,
       FSM_METADATA_DESCRIPTOR_VALID_MSK |
       (metadata_size & FSM_METADATA_DESCRIPTOR_SIZE_MSK);
   return 1;
+}
+
+bool FSM_sequence_table_init (FSM_sequence_table_t *st){
+  for (uint32_t i=0; i< FSM_SEQUENCE_TABLE_ARR_SIZE; i++){
+    st-> table[i] = 0x0;
+  }
+  return true;
 }
 
 bool sector_init(FSM_Sector_t *sector, void *address) {
@@ -238,7 +252,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               FSM_MetaData_header_t **metadata_in_flash,
               FSM_addresses_t* addresses,
               FSM_record_metadata_t *last_packet_arr,
-              uint32_t *number_record) {
+              uint32_t *number_record,
+              FSM_sequence_table_t*sequence_table) {
 
 
   sector_init(&flash_sectors[0], (void *)FLASH_SECTOR0_Addr);
@@ -251,6 +266,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   sector_init(&flash_sectors[7], (void *)FLASH_SECTOR7_Addr);
 
   FSM_write_buffer_init(fsm_wb, wb, FSM_WRITE_BUFFER_SIZE);
+  FSM_sequence_table_init (sequence_table);
   
   //metadata_header_init(metadata_in_ram, 0); // check
 
@@ -402,6 +418,8 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     iter_last_packet_ar ++;
   }
 
+
+  FSM_sequence_table_fill (metadata_in_ram);
 
   return true;
 }
@@ -734,6 +752,31 @@ void *skip_the_garbage (void *iter, void *end){
 }
 
 
+bool FSM_sequence_table_fill (FSM_MetaData_header_t *metadata){
+
+  /*TODO*/ 
+
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
  *  assumptions -> 
  *  1. dest is always in flash (log)
@@ -747,12 +790,73 @@ void *skip_the_garbage (void *iter, void *end){
  *
  */
 
+/*
+ *  plan -> 
+ *  copy packet from src to the log (src can be from write buffer or from 
+ *    gc !!)  -> clear the next packet pointer as it might contain garbage value
+ *
+ *  flash_write the packet header and packet payload
+ *
+ *  update the next packet pointer of the packet from lastpacket arr 
+ *
+ *  update lastpacket arr 
+ *
+ *  update addr
+ * */
+
 bool FSM_copy_packet_to_log (void *src, void *dest, 
-        FSM_addresses_t *addresses){
-/* TODO */
+        FSM_addresses_t *addresses, FSM_record_metadata_t *last_packet_arr){
+
+
   return true;
 }
 bool FSM_copy_packet_to_log_helper  (void *src, void *dest){
 /* TODO */
   return true;
 }
+
+// if flash is busy writing, then execute some timetaking tasks.... 
+bool FSM_flash_write_wrapper (uint32_t *buff, uint32_t size, void *address){
+
+  if (flash_state == FLASH_STATE_IDLE){
+    flash_write (buff, size, address);
+    return false;
+  }
+  execute_time_taking_tasks1 ();
+  flash_write (buff, size, address);
+
+  return true;
+}
+
+// operations that are somewhat time taking (but less than writing to the flash)
+bool execute_time_taking_tasks1 (){
+  // call some functions
+
+  return true;
+}
+// if, then execute some timetaking tasks.... 
+bool FSM_flash_erase_wrapper (void *address){
+
+  if (flash_state == FLASH_STATE_IDLE){
+    flash_erase (address);
+    return false;
+  }
+  execute_time_taking_tasks2 ();
+  flash_erase (address);
+
+  return true;
+}
+// operations that are somewhat time taking (
+// but less than erase to the flash)
+bool execute_time_taking_tasks2 (){
+  // call some functions
+  
+  return  true;
+}
+  
+FSM_Packet_header_t* get_next_packet (FSM_Packet_header_t *packet_header){
+  /*TODO*/
+  return NULL;
+}
+
+
