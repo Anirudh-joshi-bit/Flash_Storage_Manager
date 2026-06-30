@@ -34,7 +34,6 @@ FSM_record_request_t rr[3];
 // metadata ->
 FSM_MetaData_header_t fsm_ram_metadata; // metadata
 FSM_record_metadata_t fsm_ram_metadata_body [FSM_MAX_RECORD_COUNT];
-FSM_MetaData_header_t *fsm_flash_metadata; // fill this from flash .....stores the address of the most recent valid  metadata (in md sector range)
 
 // init in fsm init function
 FSM_addresses_t fsm_addresses;
@@ -89,8 +88,8 @@ int main(void) {
   FSM_record_request_init(&rr3, &usart6_ring_buffer, &usart6_request_q);
 
   // fsm_init
-  if (!FSM_init(flash_sectors, &fsm_wb, wb, &fsm_ram_metadata,
-                &fsm_flash_metadata, &fsm_addresses, last_packet_arr,
+  if (!FSM_init(flash_sectors, &fsm_wb, wb,
+                &fsm_addresses, last_packet_arr,
                 &number_record)) {
     printf(__usart1_print, "[ERROR]   FSM_init execution failed");
     hang();

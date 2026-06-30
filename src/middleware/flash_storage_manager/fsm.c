@@ -35,6 +35,8 @@ bool execute_time_taking_tasks2 ();   // more time expensive, these function can
 
 bool FSM_sequence_table_fill (FSM_MetaData_header_t* metadata);
 
+bool FSM_copy_metadata_to_ram (void *src, void *dest);
+
 
 // debug
 #ifdef DEBUG
@@ -85,6 +87,12 @@ void FSM_packet_set_size(FSM_Packet_header_t *pkt_header, uint32_t size) {
   size &= FSM_PACKET_DESCRIPTOR_SIZE_MSK;
   pkt_header->packet_descriptor |= size;
 }
+uint32_t FSM_packet_get_selfseqno (FSM_Packet_header_t* packet){
+  return (packet->seq_info & FSM_PACKET_SEQINFO_SELFSEQ_MSK) >> (32-11);
+}
+uint32_t FSM_packet_get_nextseqno (FSM_Packet_header_t* packet){
+  return (packet->seq_info & FSM_PACKET_SEQINFO_NEXTSEQ_MSK);
+}
 
 
 // metadaata getters and setters
@@ -97,6 +105,46 @@ uint32_t FSM_metadata_get_size(FSM_MetaData_header_t *md_header) {
 }
 bool FSM_metadata_is_valid(FSM_MetaData_header_t *md_header) {
   return md_header->metadata_descriptor & FSM_METADATA_DESCRIPTOR_VALID_MSK;
+}
+
+// record metadata
+uint32_t FSM_record_md_get_seqno (FSM_record_metadata_t* rmd){
+  return (rmd->md_entry & FSM_RECORD_MD_SEQ_MSK) ;
+}
+uint32_t FSM_record_md_get_key (FSM_record_metadata_t* rmd){
+  return (rmd->md_entry & FSM_RECORD_MD_KEY_MSK) >> (32-11);
+}
+
+/*check*/
+// seq_table functions
+bool FSM_sequence_table_iscomplete (FSM_sequence_table_t *st){
+  return (st->seq_tale_header & FSM_SEQUENCE_TABLE_ID_MSK) == 
+                  FSM_SEQUENCE_TABLE_CO;
+}
+bool FSM_sequence_table_isvalid (FSM_sequence_table_t* st){
+  return st->seq_tale_header & FSM_SEQUENCE_TABLE_VALID_MSK;
+}
+bool FSM_sequence_table_isoccupied (FSM_sequence_table_t* st,
+                                            uint32_t seq_num){
+  uint32_t *table_iter = (void*)st + 4;
+  table_iter += seq_num ;
+  uint32_t word = *(uint32_t *)table_iter;
+  
+  return word & FSM_SEQUENCE_TABLE_OCCUPIED_MSK;
+}
+void *FSM_sequence_table_get_address (FSM_sequence_table_t* st,
+                                            uint32_t seq_num){
+  uint32_t *table_iter = (void*)st+4;
+  table_iter += seq_num;
+  uint32_t word = *(uint32_t *) table_iter;
+
+  uint32_t offset = word & (FSM_SEQUENCE_TABLE_OFFSET_MSK);
+  return (void*) 0x08000000 + offset;
+}
+
+FSM_Packet_header_t* FSM_get_next_packet (FSM_Packet_header_t *packet){
+  /*TODO*/
+  return NULL;
 }
 
 
@@ -160,6 +208,7 @@ bool metadata_header_init(FSM_MetaData_header_t *mdh,
 }
 
 bool FSM_sequence_table_init (FSM_sequence_table_t *st){
+  // not needed 
   for (uint32_t i=0; i< FSM_SEQUENCE_TABLE_ARR_SIZE; i++){
     st-> table[i] = 0x0;
   }
@@ -248,12 +297,9 @@ void FSM_request_pair_init(FSM_request_pair_t *rp, uint8_t *key,
 // better package these addresses in a structure (fsm)
 bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               uint8_t wb[FSM_WRITE_BUFFER_SIZE],
-              FSM_MetaData_header_t *metadata_in_ram,
-              FSM_MetaData_header_t **metadata_in_flash,
               FSM_addresses_t* addresses,
               FSM_record_metadata_t *last_packet_arr,
-              uint32_t *number_record,
-              FSM_sequence_table_t*sequence_table) {
+              uint32_t *number_record){
 
 
   sector_init(&flash_sectors[0], (void *)FLASH_SECTOR0_Addr);
@@ -266,7 +312,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   sector_init(&flash_sectors[7], (void *)FLASH_SECTOR7_Addr);
 
   FSM_write_buffer_init(fsm_wb, wb, FSM_WRITE_BUFFER_SIZE);
-  FSM_sequence_table_init (sequence_table);
+  FSM_sequence_table_init (addresses->latest_sequence_table_add_flash);
   
   //metadata_header_init(metadata_in_ram, 0); // check
 
@@ -310,11 +356,11 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     latest_metadata = find_last_metadata_in_gc(addresses -> gc_sector_add);
     if (!latest_metadata){
       // _______________________________________latest metadata is not in the gc sector
-      metadata_header_init(metadata_in_ram,
+      metadata_header_init(addresses -> latest_md_add_ram,
             sizeof (FSM_MetaData_header_t)); // init metadata in ram
 
-      *metadata_in_flash = addresses-> md_end_add; 
-      FSM_copy_metadata_to_md_sector(metadata_in_ram, addresses->md_end_add, addresses);
+      addresses -> latest_md_add_flash = addresses-> md_end_add; 
+      FSM_copy_metadata_to_md_sector(addresses-> latest_md_add_ram, addresses->md_end_add, addresses);
     
     DEBUG_printf(__usart1_print, "inside function FSM_ini, latest"
         "metadata is NULL and there is no complete metadata is gc, value of"
@@ -343,20 +389,23 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
 //
 
 // note
-      *metadata_in_flash = addresses -> md_end_add;
+      addresses-> latest_md_add_flash = addresses -> md_end_add;
       FSM_copy_metadata_to_md_sector (latest_metadata,
             addresses-> md_end_add, addresses);
       //addresses -> md_end_add += FSM_metadata_get_size(latest_metadata);
       // metadta is copied from gc sector to md sector
 //
-     *metadata_in_ram =  **metadata_in_flash;
+      // make a function to copy md to ram
+      FSM_copy_metadata_to_ram (addresses -> latest_md_add_flash, 
+                                addresses -> latest_md_add_ram);
     }
   }
   
   else {
     // there is a valid latest_metadata in md_sector
-    *metadata_in_flash = latest_metadata;
-    *metadata_in_ram = **metadata_in_flash;
+    addresses -> latest_md_add_flash = latest_metadata;
+    FSM_copy_metadata_to_ram (addresses -> latest_md_add_flash, 
+                              addresses -> latest_md_add_ram);
   }
 
 
@@ -374,7 +423,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   //      FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t);
   
   // using ram metadata to make the lastpacket arr
-  if (FSM_metadata_get_size(metadata_in_ram) - sizeof (FSM_MetaData_header_t)
+  if (FSM_metadata_get_size(addresses -> latest_md_add_ram) - sizeof (FSM_MetaData_header_t)
         >  FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t)) 
   {
     printf (__usart1_print, "[WARNING]    there is too many records !!!\n\r");
@@ -382,10 +431,10 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
     return false;
   }
   
-  FSM_record_metadata_t *iter = (void*) metadata_in_ram + 
+  FSM_record_metadata_t *iter = addresses -> latest_md_add_ram+ 
                                 sizeof (FSM_MetaData_header_t);
-  FSM_record_metadata_t *iter_end = (void *)metadata_in_ram +
-                                    FSM_metadata_get_size(metadata_in_ram);
+  FSM_record_metadata_t *iter_end = addresses -> latest_md_add_ram+
+                                    FSM_metadata_get_size(addresses -> latest_md_add_ram);
   
   FSM_record_metadata_t *iter_last_packet_ar = last_packet_arr;
 
@@ -419,14 +468,15 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   }
 
 
-  FSM_sequence_table_fill (metadata_in_ram);
-
+  FSM_sequence_table_fill (addresses -> latest_md_add_ram);
+  /*TODO*/
   return true;
 }
 
 // check !!!
+// gc_sector may have md / packet / sequence_table
 FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add){
-  //flahshh_get_sector (gc_sector_add);
+
   void *gc_end_add = gc_sector_add +
                   flash_get_sector_size(flash_get_sector (gc_sector_add));
 
@@ -592,6 +642,23 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   flash_write (&complete_descriptor, 1, dest);
 
   return 1;
+}
+
+// dest is in the ram address range
+bool FSM_copy_metadata_to_ram (void *src, void *dest){
+  // copy the header first
+  *(FSM_MetaData_header_t* )dest = *(FSM_MetaData_header_t* ) src;
+  src += sizeof (FSM_MetaData_header_t);
+  dest += sizeof (FSM_MetaData_header_t);
+  
+  void *iter = src;
+  void *iter_end = FSM_metadata_get_size(src) + src;
+
+  while (iter < iter_end){
+    *(FSM_record_metadata_t *)dest = *(FSM_record_metadata_t *)src; 
+    iter += sizeof (FSM_record_metadata_t);
+  }
+  return true;
 }
 
 /*
@@ -788,9 +855,8 @@ bool FSM_sequence_table_fill (FSM_MetaData_header_t *metadata){
  *
  *
  *
- */
-
-/*
+ *
+ *
  *  plan -> 
  *  copy packet from src to the log (src can be from write buffer or from 
  *    gc !!)  -> clear the next packet pointer as it might contain garbage value
@@ -856,7 +922,14 @@ bool execute_time_taking_tasks2 (){
   
 FSM_Packet_header_t* get_next_packet (FSM_Packet_header_t *packet_header){
   /*TODO*/
+  
+ // st is either in the gc sector / in the md sector
   return NULL;
 }
 
+// assumption --> dest is in the flash range (gc sector / md sector)
+bool FSM_copy_sequence_table_to_flash (void *src, void *dest){
+  /* TODO */
+  return true;
+}
 
