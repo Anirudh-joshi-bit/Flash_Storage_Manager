@@ -18,13 +18,13 @@
 #define FSM_PACKET_DESCRIPTOR_SIZE_MSK      ((1<<20) -1)  // 19 ones
 #define FSM_PACKET_DESCRIPTOR_VALID_MSK     (1<<20)
 #define FSM_PACKET_DESCRIPTOR_NREMOVED_MSK  (1<<21)
-#define FSM_PACKET_SEQINFO_NEXTSEQ_MSK      ((1<<11) -1) 
-#define FSM_PACKET_SEQINFO_SELFSEQ_MSK      (((1<<11) -1) << (32-11))
+#define FSM_PACKET_SEQINFO_NEXTSEQ_MSK      ((1<<10) -1) 
+#define FSM_PACKET_SEQINFO_SELFSEQ_MSK      (((1<<10) -1) << (32-10))
 #define FSM_PKT_HEAD_INCO                   (0x3ff<<21)       // 01111111111
 #define FSM_PKT_HEAD_CO                     (0x1ff<<21)       // 00111111111
 
-// same for md and packet
-#define FSM_MD_PKT_DESCRIPTOR_HEAD_MSK      (~0U<<21)
+// same field for md, packet, sequence _table  bit[21] - bit[31]
+#define FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK      (~0U<<21)
 
 // metadata
 #define FSM_METADATA_DESCRIPTOR_SIZE_MSK    ((1<<20) -1)  // 19 onesfsm.
@@ -33,8 +33,8 @@
 #define FSM_MD_HEAD_CO                      (0x07f<<21)       // 00001111111
 
 // record_metadata 
-#define FSM_RECORD_MD_SEQ_MSK               ((1<<21)-1)
-#define FSM_RECORD_MD_KEY_MSK               (((1<<11)-1) << (32-11))
+#define FSM_RECORD_MD_SEQ_MSK               ((1<<10)-1)
+#define FSM_RECORD_MD_KEY_MSK               (((1<<22)-1) << (32-22))
 
 // sequence table
 #define FSM_SEQUENCE_TABLE_ID_MSK           ((1<<11)-1)
@@ -58,7 +58,7 @@
 #define FSM_MAX_RECORD_COUNT                100
 #define MAX_RECORD_COUNT                    100
 #define FSM_LOG_SIZE                        (512-16-16-128)
-#define FSM_MAX_SEQ_NUM           ((FSM_LOG_SIZE/(MAX_PACKET_SIZE/1024))-1)
+#define FSM_MAX_SEQ_NUM                     1024-1  //10 bits for sseq num
 
 #define FLASH_ST_ADDRESS                    0x08000000
 #define FLASH_END_ADDRESS                   0x08080000
@@ -91,9 +91,9 @@ typedef struct __FSM_addresses_t {
     sizeof (FSM_Packet_t) == 8Byte
 
     seq_info ->
-    bit[0] - bit[10] ==  self seq number (11 bits)
-    bit [11] - bit[20]== reserved
-    bit[21] - bit[31]== next packet seq number (11-bits)
+    bit[0] - bit[9] ==  self seq number (10 bits)
+    bit [10] - bit[20]== reserved
+    bit[22] - bit[31]== next packet seq number (10-bits)
 
 */
 // note ... size of packet and md head must be the same....
@@ -138,8 +138,8 @@ typedef struct __FSM_MetaData_header_t {
 //  bit[21]             == reserved
 // bit[22] - bit[31]    == seqnumebr
 
-typedef struct __FSM__sequence_table_t {
-  uint32_t seq_tale_header;
+typedef struct __FSM_sequence_table_t {
+  uint32_t seq_table_header;
   uint32_t table [FSM_MAX_SEQ_NUM+1]; 
 } FSM_sequence_table_t;
 
@@ -157,8 +157,8 @@ typedef struct __FSM_Sector_t {
 
 // md_entry -> mapps seqnumber -> key
 // if lsb of key is 0 -> record is removed
-// bit[0] - bit[20]     == seq_number
-// bit[21] - bit[31]    == key
+// bit[0] - bit[9]     == seq_number
+// bit[10] - bit[31]    == key
 //
 typedef struct __FSM_record_metadata_t {
   uint32_t md_entry;

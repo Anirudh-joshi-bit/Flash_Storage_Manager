@@ -23,7 +23,7 @@ bool FSM_make_last_packet_arr (FSM_record_metadata_t* arr,
                                 FSM_addresses_t *add, void *metadata);
 
 FSM_Packet_header_t* FSM_get_last_packet 
-                (FSM_Packet_header_t* start_packet);
+                (FSM_Packet_header_t* start_packet, FSM_sequence_table_t* st);
 
 void *skip_the_garbage (void *iter, void *end);
 
@@ -37,6 +37,8 @@ bool FSM_sequence_table_fill (FSM_MetaData_header_t* metadata);
 
 bool FSM_copy_metadata_to_ram (void *src, void *dest);
 
+uint32_t  FSM_get_last_packet_seq_no
+                (FSM_Packet_header_t* start_packet, FSM_sequence_table_t* st);
 
 // debug
 #ifdef DEBUG
@@ -48,29 +50,14 @@ void __usart1_print(const char *msg, uint32_t size);
 
 
 /*
- note !!! for setting functions of packet_header and metadata_header
-
- the fileds are not cleared before writing the value as most of
- the time packet header is located in the   flash ... clearing bits
- will result in all bits of the field to set to 0... writing / setting a
- bit in the field will require erasing the entire flash sector
-
- option -> set (0), set (value)   follow this sequence if you want to clear
- the field before writting to it
+ * all the setter functions are removed .. define it when needed TODO
 */
 
-// md, pkt common functions
-uint32_t FSM_md_pkt_get_head(void *header) {
-  // or packet
-  return ((FSM_MetaData_header_t *)header)->metadata_descriptor &
-              FSM_MD_PKT_DESCRIPTOR_HEAD_MSK;
+// md, pkt, sequence_table common functions  
+// assumption -> always the first word of packet/md/st has the id
+uint32_t FSM_md_pkt_st_get_ID(void *header) {
+  return *(uint32_t *) header & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK;
 }
-void FSM_md_pkt_set_head(void *header, uint32_t head) {
-  head &= FSM_MD_PKT_DESCRIPTOR_HEAD_MSK;
-  // or packet
-  ((FSM_MetaData_header_t *)header)->metadata_descriptor |= head;
-}
-
 
 // packet getters and setters
 uint32_t FSM_packet_get_size(FSM_Packet_header_t *pkt_header) {
@@ -83,23 +70,15 @@ bool FSM_packet_is_removed(FSM_Packet_header_t *pkt_header) {
 bool FSM_packet_is_valid(FSM_Packet_header_t *pkt_header) {
   return !(pkt_header->packet_descriptor & FSM_PACKET_DESCRIPTOR_VALID_MSK);
 }
-void FSM_packet_set_size(FSM_Packet_header_t *pkt_header, uint32_t size) {
-  size &= FSM_PACKET_DESCRIPTOR_SIZE_MSK;
-  pkt_header->packet_descriptor |= size;
-}
 uint32_t FSM_packet_get_selfseqno (FSM_Packet_header_t* packet){
-  return (packet->seq_info & FSM_PACKET_SEQINFO_SELFSEQ_MSK) >> (32-11);
+  return (packet->seq_info & FSM_PACKET_SEQINFO_SELFSEQ_MSK) >> (32-10);
 }
 uint32_t FSM_packet_get_nextseqno (FSM_Packet_header_t* packet){
   return (packet->seq_info & FSM_PACKET_SEQINFO_NEXTSEQ_MSK);
 }
 
 
-// metadaata getters and setters
-void FSM_metadata_set_size(FSM_MetaData_header_t *md_header, uint32_t size) {
-  size &= FSM_METADATA_DESCRIPTOR_SIZE_MSK;
-  md_header->metadata_descriptor |= size;
-}
+// metadaata getters
 uint32_t FSM_metadata_get_size(FSM_MetaData_header_t *md_header) {
   return md_header->metadata_descriptor & FSM_METADATA_DESCRIPTOR_SIZE_MSK;
 }
@@ -112,18 +91,36 @@ uint32_t FSM_record_md_get_seqno (FSM_record_metadata_t* rmd){
   return (rmd->md_entry & FSM_RECORD_MD_SEQ_MSK) ;
 }
 uint32_t FSM_record_md_get_key (FSM_record_metadata_t* rmd){
-  return (rmd->md_entry & FSM_RECORD_MD_KEY_MSK) >> (32-11);
+  return (rmd->md_entry & FSM_RECORD_MD_KEY_MSK) >> (32-22);
 }
+// assuming => sizeof (FSM_record_metadata_t) == sizeof (uint32_t);
+bool FSM_record_md_set_seqno (FSM_record_metadata_t* rmd, uint32_t seq_no){
+  uint32_t word = (*(uint32_t *)rmd & FSM_RECORD_MD_KEY_MSK) | (seq_no & FSM_RECORD_MD_SEQ_MSK);
+  if ( (void *)rmd >= (void *)FLASH_ST_ADDRESS && (void *)rmd <= (void *) FLASH_END_ADDRESS){
+    // write to flash;
+    FSM_flash_write_wrapper (&word, 1, (void *)rmd);
+  }
+  else if ((void *)rmd > (void *)RAM_ST_ADDRESS && (void *)rmd <= (void *) RAM_END_ADDRESS){
+    // write to ram;
+    *(uint32_t *)rmd = word;
+  }
+  else {
+    DEBUG_printf(__usart1_print, "inside FSM_record_md_set_seqno, rmd in not from flash / from ram\n\r");
+    return false;
+  }
+  return true;
+}
+
 
 /*check*/
 // seq_table functions 
 // ... no setter functions for now as seq table is mostly present in flash
 bool FSM_sequence_table_iscomplete (FSM_sequence_table_t *st){
-  return (st->seq_tale_header & FSM_SEQUENCE_TABLE_ID_MSK) == 
+  return (st->seq_table_header & FSM_SEQUENCE_TABLE_ID_MSK) == 
                   FSM_SEQUENCE_TABLE_CO;
 }
 bool FSM_sequence_table_isvalid (FSM_sequence_table_t* st){
-  return st->seq_tale_header & FSM_SEQUENCE_TABLE_VALID_MSK;
+  return st->seq_table_header & FSM_SEQUENCE_TABLE_VALID_MSK;
 }
 bool FSM_sequence_table_isoccupied (FSM_sequence_table_t* st,
                                             uint32_t seq_num){
@@ -195,7 +192,7 @@ bool FSM_Packet_header_init(FSM_Packet_header_t *pkt, uint16_t data_size) {
 
   pkt->packet_descriptor = 0;
   pkt->packet_descriptor |= (FSM_PKT_HEAD_INCO &
-                            FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
+                            FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) |
                             FSM_PACKET_DESCRIPTOR_VALID_MSK |
                             FSM_PACKET_DESCRIPTOR_NREMOVED_MSK |
                             (min_size & FSM_PACKET_DESCRIPTOR_SIZE_MSK);
@@ -213,7 +210,7 @@ bool metadata_header_init(FSM_MetaData_header_t *mdh,
   
   mdh->metadata_descriptor = 0;
   mdh->metadata_descriptor |=
-      (FSM_MD_HEAD_CO & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) |
+      (FSM_MD_HEAD_CO & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) |
       FSM_METADATA_DESCRIPTOR_VALID_MSK |
       (metadata_size & FSM_METADATA_DESCRIPTOR_SIZE_MSK);
   return 1;
@@ -221,7 +218,7 @@ bool metadata_header_init(FSM_MetaData_header_t *mdh,
 
 bool FSM_sequence_table_init (FSM_sequence_table_t *st){
   // not needed 
-  for (uint32_t i=0; i< FSM_SEQUENCE_TABLE_ARR_SIZE; i++){
+  for (uint32_t i=0; i<=FSM_MAX_SEQ_NUM; i++){
     st-> table[i] = 0x0;
   }
   return true;
@@ -278,6 +275,7 @@ bool record_metadata_init(FSM_record_metadata_t *kap,
   {
      return false;
   }
+  /*TODO*/
   kap->key = key | FSM_RECORD_REMOVED_MSK;
   kap->packet_add= addr;
 
@@ -314,6 +312,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
               uint32_t *number_record){
 
 
+  // put metadata of sextors in the flash (md_sector)
   sector_init(&flash_sectors[0], (void *)FLASH_SECTOR0_Addr);
   sector_init(&flash_sectors[1], (void *)FLASH_SECTOR1_Addr);
   sector_init(&flash_sectors[2], (void *)FLASH_SECTOR2_Addr);
@@ -345,7 +344,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   addresses -> gc_end_add = FSM_get_gc_end_add(7);
 
   if (addresses-> gc_end_add >= flash_get_sector_address(7) +
-          flash_get_sector_size(7)){
+          flash_get_sector_size(7) || !addresses -> gc_end_add){
 
     DEBUG_printf (__usart1_print, "in FSM_init function, gc_end is "
           "exceeding the 7th sector boundary \n\r");
@@ -356,6 +355,7 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
   addresses -> md_sector_add = flash_get_sector_address(1);
   addresses -> md_end_add = FSM_get_md_end_add (1, &latest_metadata);
   addresses -> log_end_add = FSM_get_log_end_add (2, 6);
+  addresses -> latest_sequence_table_add_flash = NULL;    // TODO
 
 
   // populate md_ram and md_flash
@@ -420,65 +420,26 @@ bool FSM_init(FSM_Sector_t flash_sectors[8], FSM_write_buffer_t *fsm_wb,
                               addresses -> latest_md_add_ram);
   }
 
+  // check this part
+  // make the last packet array -> record -> seqnumber 
 
+  // copy the metadata to array
+  FSM_record_metadata_t* metadata = addresses -> latest_md_add_ram + 
+            sizeof (FSM_MetaData_header_t);
 
+  for (int i=0; i<MAX_RECORD_COUNT*sizeof(FSM_record_metadata_t); i++){
+    last_packet_arr[i] = metadata[i];
+    // get the last packet sequence number of the record
+    // get the seqno, get the packet add, traverse the record, get the last packet seqno, set the seq no to last_packet_arr
 
-  // make the array ...... from flssh_metadata
-  /*TODO*/
-    /*
-     * 1. read metadata and get teh record's first packet address
-     * 2. for each record, follow the link and get to the last packet for
-     * that  record
-     * */
+    uint32_t seq_no = FSM_record_md_get_seqno(&metadata[i]);
+    FSM_Packet_header_t *first_packet = FSM_sequence_table_get_address (
+        addresses -> latest_sequence_table_add_flash ,seq_no);
 
-  // max size of the last packet array is
-  //      FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t);
-  
-  // using ram metadata to make the lastpacket arr
-  if (FSM_metadata_get_size(addresses -> latest_md_add_ram) - sizeof (FSM_MetaData_header_t)
-        >  FSM_MAX_RECORD_COUNT * sizeof (FSM_record_metadata_t)) 
-  {
-    printf (__usart1_print, "[WARNING]    there is too many records !!!\n\r");
-    printf (__usart1_print, "[TIP]    increase the max record count \n\r");
-    return false;
+    uint32_t last_packet_seq_no = FSM_get_last_packet_seq_no( first_packet,
+                      addresses-> latest_sequence_table_add_flash);
+    FSM_record_md_set_seqno(&last_packet_arr[i], seq_no);
   }
-  
-  FSM_record_metadata_t *iter = addresses -> latest_md_add_ram+ 
-                                sizeof (FSM_MetaData_header_t);
-  FSM_record_metadata_t *iter_end = addresses -> latest_md_add_ram+
-                                    FSM_metadata_get_size(addresses -> latest_md_add_ram);
-  
-  FSM_record_metadata_t *iter_last_packet_ar = last_packet_arr;
-
-  while (iter < iter_end){ 
-    *(FSM_record_metadata_t *)iter =
-                        *(FSM_record_metadata_t *)iter_last_packet_ar;
-
-    (*number_record) ++;   
-
-    iter ++;
-    iter_last_packet_ar ++;
-
-  }
-
-  DEBUG_printf (__usart1_print, "number of record = %d \n\r",
-                                *number_record);
-
-  if (!*number_record) return true;   // empty flash
-
-  // read to get the last packet address 
-  iter_last_packet_ar = last_packet_arr;
-  FSM_record_metadata_t* iter_last_packet_ar_end =
-              (void *)last_packet_arr + *number_record;
-
-
-  while (iter_last_packet_ar <= iter_last_packet_ar_end){
-    //FSM_get_last_packet ();
-    iter_last_packet_ar -> packet_add = 
-                  FSM_get_last_packet (iter_last_packet_ar -> packet_add);
-    iter_last_packet_ar ++;
-  }
-
 
   FSM_sequence_table_fill (addresses -> latest_md_add_ram);
   /*TODO*/
@@ -496,21 +457,26 @@ FSM_MetaData_header_t* find_last_metadata_in_gc (void * gc_sector_add){
   FSM_MetaData_header_t* last_metadata = NULL;
 
   while (gc_iter < gc_end_add){
-    if ((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
-      // this is a metadata
+    if ((*(uint32_t *)gc_iter & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) == FSM_MD_HEAD_CO){
+      // this is a metadata it has to be complete else it is not considered
       last_metadata = (FSM_MetaData_header_t *)gc_iter;
       uint32_t md_size =
                 FSM_metadata_get_size ((FSM_MetaData_header_t*) gc_iter);
       gc_iter += md_size;
     }else
-    if (((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) ||
-       ((*(uint32_t *)gc_iter & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
-      // this is a packet
+    if (((*(uint32_t *)gc_iter & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_CO) ||
+       ((*(uint32_t *)gc_iter & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) == FSM_PKT_HEAD_INCO)){
+      // this is a packet that is either complete or incomplete
       uint32_t pkt_size =
                 FSM_packet_get_size ((FSM_Packet_header_t*) gc_iter);
       gc_iter += pkt_size;
     }
-    else 
+    else if ((*(uint32_t *)gc_iter & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) == FSM_SEQUENCE_TABLE_CO || 
+      (*(uint32_t *)gc_iter & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) == FSM_SEQUENCE_TABLE_INCO){
+      // this is a sequence_table that is either complete / incomplete
+      gc_iter += sizeof (FSM_sequence_table_t);
+    }
+    else
       return last_metadata;
   }
   return last_metadata;
@@ -603,7 +569,7 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   uint32_t metadata_descriptor = *(uint32_t *)src;
 
  // #ifdef DEBUG
-  if ((metadata_descriptor & FSM_MD_PKT_DESCRIPTOR_HEAD_MSK) !=
+  if ((metadata_descriptor & FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK) !=
       FSM_MD_HEAD_CO && flash_get_sector(dest) != -1)  {
 
     DEBUG_printf (__usart1_print, "in FSM_copy_metadata_to_md_sector"
@@ -611,7 +577,7 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   }
  // #endif
 
-  metadata_descriptor &= ~FSM_MD_PKT_DESCRIPTOR_HEAD_MSK; // clear the head
+  metadata_descriptor &= ~FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK; // clear the head
   metadata_descriptor |= FSM_MD_HEAD_INCO; // set incomplete bits
 
   // assuming metadata header is 4Bytes
@@ -649,7 +615,7 @@ bool FSM_copy_metadata_to_md_sector_helper (void *src, void *dest) {
   // complete the transaction 
   // check
   uint32_t complete_descriptor = 
-    (FSM_MD_HEAD_CO | ~(FSM_MD_PKT_DESCRIPTOR_HEAD_MSK)) &  metadata_descriptor ;
+    (FSM_MD_HEAD_CO | ~(FSM_MD_PKT_ST_DESCRIPTOR_HEAD_MSK)) &  metadata_descriptor ;
 
   flash_write (&complete_descriptor, 1, dest);
 
@@ -675,6 +641,7 @@ bool FSM_copy_metadata_to_ram (void *src, void *dest){
 
 /*
  * retutns gc_end_address
+ * gc can have paket(co, inco), md(co, inco), sequence_table(co, inco)
  * */
 
 void *FSM_get_gc_end_add (uint8_t sector){
@@ -685,42 +652,72 @@ void *FSM_get_gc_end_add (uint8_t sector){
   while (iter < sector_end) {
     uint32_t word = *(uint32_t *)iter;
     if (word == 0xffffffff) return iter;
-    uint32_t head = FSM_md_pkt_get_head(iter);
+
+//////////////////////////////////////////// UNCHECKED PART//////////////////
+    uint32_t head = FSM_md_pkt_st_get_ID(iter);
     uint32_t md_pkt_size = 0;
     if (head == FSM_MD_HEAD_CO){
       // md_head
-      md_pkt_size = FSM_metadata_get_size (iter);
+      iter += FSM_metadata_get_size (iter);
     }
     else if (head == FSM_MD_HEAD_INCO) {
+      // skip the garbage
       void *ret = skip_the_garbage (iter, sector_end);
       if (!ret) {
-        DEBUG_printf(__usart1_print, "returned to FSM_get_gc_end_add from \
+        DEBUG_printf(__usart1_print, "[1]returned to FSM_get_gc_end_add from \
             skip_the_garbage function with NULL return value \n\r");
+        return ret;
       }
-      return ret;
+      iter = ret;
     }
 
     else if (head == FSM_PKT_HEAD_CO){
       // pkt head
-      md_pkt_size = FSM_packet_get_size (iter);
+      iter += FSM_packet_get_size (iter);
     }
     else if ( head == FSM_PKT_HEAD_INCO) {
+      // skip the garbage
+      void *ret = skip_the_garbage (iter, sector_end);
+      if (!ret) {
+        DEBUG_printf(__usart1_print, "[2]returned to FSM_get_gc_end_add from \
+            skip_the_garbage function with NULL return value \n\r");
+        return ret;
+      }
+      iter = ret;
     }
-
-    //#ifdef DEBUG
+    else if (head == FSM_SEQUENCE_TABLE_CO){
+      iter += FSM_MAX_SEQ_NUM+1;
+    }
+    else if (head == FSM_SEQUENCE_TABLE_INCO){
+      void *ret = skip_the_garbage (iter, sector_end);
+      if (!ret) {
+      // skip the garbage
+        DEBUG_printf(__usart1_print, "[3]returned to FSM_get_gc_end_add from \
+            skip_the_garbage function with NULL return value \n\r");
+        return ret;
+      }
+      iter = ret;
+    }
     else{
       DEBUG_printf (__usart1_print, "in fsm_get_gc_end_add function,"
               "head is not 0xffffffff or FSM_MD(PKT)_HEAD_CO/INCO");
+      // skip the garbage
+      void *ret = skip_the_garbage (iter, sector_end);
+      if (!ret) {
+        DEBUG_printf(__usart1_print, "[3]returned to FSM_get_gc_end_add from \
+            skip_the_garbage function with NULL return value \n\r");
+        return ret;
+      }
+      iter = ret;
     }
-    //#endif
-
-    iter += md_pkt_size;
   }
   return iter;
+//////////////////////////////////////////// UNCHECKED PART//////////////////
 }
 
 
 // returns the end free address of md_sector and populate latest_metadata
+// md_sector now contains both metadata block and sequence_table
 void *FSM_get_md_end_add (uint8_t sector,
         FSM_MetaData_header_t** latest_metadata){
 
@@ -730,7 +727,7 @@ void *FSM_get_md_end_add (uint8_t sector,
   while (iter < sector_end && *(uint32_t *)iter != 0xffffffff){
 
     uint32_t word = *(uint32_t *)iter;
-    uint32_t head = FSM_md_pkt_get_head (iter);
+    uint32_t head = FSM_md_pkt_st_get_ID (iter);
     if ( head == FSM_MD_HEAD_CO ){
       // md is written completely
       *latest_metadata = (FSM_MetaData_header_t *)iter;
@@ -744,16 +741,27 @@ void *FSM_get_md_end_add (uint8_t sector,
             skip_the_garbage function and the return value is NULL\n\r");
         return NULL;
       }
-      return ret;
+      iter = ret;
     }
+    else if (head == FSM_SEQUENCE_TABLE_CO) {
+      iter += FSM_MAX_SEQ_NUM+1;
+    }
+    else if (head == FSM_SEQUENCE_TABLE_INCO){
+      void *ret = skip_the_garbage(iter, sector_end);
+      if (!ret) {
+        DEBUG_printf(__usart1_print, "returned  to FSM_get_md_end_add from \
+            skip_the_garbage function and the return value is NULL\n\r");
+        return NULL;
+      }
+      iter = ret;
+    }
+    // TODO fro sector metadata
     else {
-      DEBUG_printf( __usart1_print, "in FSM_get_md_end_add \
-          function, iter is not 0xffffffff or FSM_MD_HEAD_INCO or \
-          FSM_MD_HEAD_CO\n\n");
-      DEBUG_printf (__usart1_print, "instead it is %x\n\r", \
+      DEBUG_printf( __usart1_print, "in FSM_get_md_end_add function, iter is not 0xffffffff , FSM_MD_HEAD_INCO ,FSM_MD_HEAD_CO, FSM_SEQUENCE_TABLE_CO or FSM_SEQUENCE_TABLE_INCO\n\n");
+
+      DEBUG_printf (__usart1_print, "instead it is %x\n\r", 
           *(uint32_t *)iter);
-      DEBUG_printf (__usart1_print, "value of iter is, %x\n\r", \
-          iter);
+      DEBUG_printf (__usart1_print, "value of iter is, %x\n\r", iter);
       // hang
       DEBUG_assert (0);
     }
@@ -780,7 +788,7 @@ void *FSM_get_log_end_add (uint8_t st_sector, uint8_t end_sector){
                   "at address %x, log end is found... see the hexdump\n\r", iter);
       return iter;
     }
-    uint32_t head = FSM_md_pkt_get_head(iter);
+    uint32_t head = FSM_md_pkt_st_get_ID(iter);
 
     if (head == FSM_PKT_HEAD_CO){
       iter += FSM_metadata_get_size(iter);
@@ -801,21 +809,24 @@ void *FSM_get_log_end_add (uint8_t st_sector, uint8_t end_sector){
 }
 
 
-FSM_Packet_header_t* FSM_get_last_packet 
-                (FSM_Packet_header_t* start_packet)
+// check
+uint32_t  FSM_get_last_packet_seq_no
+                (FSM_Packet_header_t* start_packet, FSM_sequence_table_t* st)
 {
   if (!start_packet) {
     printf (__usart1_print, "[ERROR]    in function FSM_get_last_packet, "
         "start packet is NULL");
+    return NULL;
   }
   FSM_Packet_header_t* iter = start_packet;
 
-  while (iter -> next_packet != (FSM_Packet_header_t *)0xffffffff){
-    iter = iter->next_packet;
+  while (FSM_get_next_packet(iter,st) != (FSM_Packet_header_t *)0xffffffff){
+    iter = FSM_get_next_packet(iter , st);
   }
-  return iter; 
+  return FSM_packet_get_selfseqno (iter); 
 }
 
+// returns NULL if iter moves out of bound
 void *skip_the_garbage (void *iter, void *end){
 
   while (iter < end && *(uint32_t *)iter != 0xffffffff)
@@ -900,15 +911,17 @@ bool FSM_flash_write_wrapper (uint32_t *buff, uint32_t size, void *address){
     flash_write (buff, size, address);
     return false;
   }
-  execute_time_taking_tasks1 ();
   flash_write (buff, size, address);
-
+  execute_time_taking_tasks1 ();
+  
+  // dont need to wait  for flash state to be idle
+  
   return true;
 }
 
 // operations that are somewhat time taking (but less than writing to the flash)
 bool execute_time_taking_tasks1 (){
-  // call some functions
+  // call some update function...that does not require flash erase / write
 
   return true;
 }
@@ -919,8 +932,10 @@ bool FSM_flash_erase_wrapper (void *address){
     flash_erase (address);
     return false;
   }
-  execute_time_taking_tasks2 ();
   flash_erase (address);
+  execute_time_taking_tasks2 ();
+
+  // dont need to wait  for flash state to be idle
 
   return true;
 }
@@ -931,17 +946,17 @@ bool execute_time_taking_tasks2 (){
   
   return  true;
 }
-  
-FSM_Packet_header_t* get_next_packet (FSM_Packet_header_t *packet_header){
-  /*TODO*/
-  
- // st is either in the gc sector / in the md sector
-  return NULL;
-}
 
 // assumption --> dest is in the flash range (gc sector / md sector)
 bool FSM_copy_sequence_table_to_flash (void *src, void *dest){
   /* TODO */
   return true;
 }
+
+//TODO
+//1. define seq table init function
+// all todos
+//2. add sector metadata to the flash
+//3. check all the functions
+
 
