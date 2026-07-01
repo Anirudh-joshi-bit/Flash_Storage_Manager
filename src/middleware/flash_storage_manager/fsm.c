@@ -116,7 +116,8 @@ uint32_t FSM_record_md_get_key (FSM_record_metadata_t* rmd){
 }
 
 /*check*/
-// seq_table functions
+// seq_table functions 
+// ... no setter functions for now as seq table is mostly present in flash
 bool FSM_sequence_table_iscomplete (FSM_sequence_table_t *st){
   return (st->seq_tale_header & FSM_SEQUENCE_TABLE_ID_MSK) == 
                   FSM_SEQUENCE_TABLE_CO;
@@ -126,6 +127,8 @@ bool FSM_sequence_table_isvalid (FSM_sequence_table_t* st){
 }
 bool FSM_sequence_table_isoccupied (FSM_sequence_table_t* st,
                                             uint32_t seq_num){
+  if (seq_num > FSM_MAX_SEQ_NUM) return NULL;
+
   uint32_t *table_iter = (void*)st + 4;
   table_iter += seq_num ;
   uint32_t word = *(uint32_t *)table_iter;
@@ -134,6 +137,8 @@ bool FSM_sequence_table_isoccupied (FSM_sequence_table_t* st,
 }
 void *FSM_sequence_table_get_address (FSM_sequence_table_t* st,
                                             uint32_t seq_num){
+  if (seq_num > FSM_MAX_SEQ_NUM) return NULL;
+
   uint32_t *table_iter = (void*)st+4;
   table_iter += seq_num;
   uint32_t word = *(uint32_t *) table_iter;
@@ -142,9 +147,16 @@ void *FSM_sequence_table_get_address (FSM_sequence_table_t* st,
   return (void*) 0x08000000 + offset;
 }
 
-FSM_Packet_header_t* FSM_get_next_packet (FSM_Packet_header_t *packet){
+// make sure that sequence table is valid before calling this function
+FSM_Packet_header_t* FSM_get_next_packet (FSM_Packet_header_t *packet,
+                        FSM_sequence_table_t *st){
   /*TODO*/
-  return NULL;
+  uint32_t nextpacket_seqnum = FSM_packet_get_nextseqno(packet);
+  if (!FSM_sequence_table_isoccupied(st, nextpacket_seqnum)){
+    DEBUG_printf (__usart1_print, "in FSM_get_next_packet function, nextpacket_seqnum is not occupied");
+    return NULL;
+  }
+  return FSM_sequence_table_get_address(st, nextpacket_seqnum);
 }
 
 

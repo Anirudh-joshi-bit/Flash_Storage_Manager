@@ -58,7 +58,7 @@
 #define FSM_MAX_RECORD_COUNT                100
 #define MAX_RECORD_COUNT                    100
 #define FSM_LOG_SIZE                        (512-16-16-128)
-#define FSM_SEQUENCE_TABLE_ARR_SIZE     (FSM_LOG_SIZE/(MAX_PACKET_SIZE/1024))
+#define FSM_MAX_SEQ_NUM           ((FSM_LOG_SIZE/(MAX_PACKET_SIZE/1024))-1)
 
 #define FLASH_ST_ADDRESS                    0x08000000
 #define FLASH_END_ADDRESS                   0x08080000
@@ -140,7 +140,7 @@ typedef struct __FSM_MetaData_header_t {
 
 typedef struct __FSM__sequence_table_t {
   uint32_t seq_tale_header;
-  uint32_t table [FSM_SEQUENCE_TABLE_ARR_SIZE]; 
+  uint32_t table [FSM_MAX_SEQ_NUM+1]; 
 } FSM_sequence_table_t;
 
 
